@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel de Control — Gate Gourmet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0B1220;
+    --panel: #121B2E;
+    --panel-2: #16213A;
+    --line: #223050;
+    --text: #EDF1F7;
+    --text-dim: #8592AC;
+    --verde: #2FBE7A;
+    --verde-dim: #14351F;
+    --amarillo: #E8A63A;
+    --amarillo-dim: #3A2E10;
+    --rojo: #E1524B;
+    --rojo-dim: #3A1616;
+    --beacon: #4FA8D8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    padding:28px 20px 60px;
+  }
+  .board-header{
+    display:flex; justify-content:center; align-items:center; text-align:center;
+    border-bottom:2px solid var(--line); padding-bottom:16px; margin-bottom:20px;
+    flex-wrap:wrap; gap:12px;
+  }
+  .board-title{
+    font-family:'Space Mono',monospace; font-weight:700; letter-spacing:2px;
+    font-size:22px; text-transform:uppercase; color:var(--text);
+  }
+  .board-title span{color:var(--beacon);}
+  .board-sub{ color:var(--text-dim); font-size:13px; margin-top:4px; font-family:'Space Mono',monospace;}
+  .clock{
+    font-family:'Space Mono',monospace; font-size:13px; color:var(--text-dim);
+    text-align:right;
+  }
+  .clock b{color:var(--text); font-size:15px;}
+
+  .kpis-top{ display:grid; grid-template-columns:1fr 0.8fr 1.1fr; gap:14px; margin-bottom:14px; }
+  .kpi-big{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:18px 22px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:18px; text-align:center;
+  }
+  .kpi-big::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--kbc,var(--beacon)); }
+  .kpi-big .num{ font-family:'Space Mono',monospace; font-weight:700; font-size:56px; line-height:1; color:var(--text); }
+  .kpi-big .txt{ display:flex; flex-direction:column; gap:4px; align-items:center; }
+  .kpi-big .lbl{ color:var(--text-dim); font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+  .kpi-big .sub{ font-family:'Space Mono',monospace; font-size:13px; color:var(--beacon); }
+  .kpi-big.day{ --kbc: var(--beacon); }
+  .kpi-big.snapshot{ --kbc: var(--text-dim); }
+  .kpi-big.snapshot .num{ font-size:44px; color:var(--text-dim); }
+  .kpi-big.pending{ --kbc: var(--rojo); flex-wrap:wrap; justify-content:center; }
+  .kpi-big.pending .num{ color:var(--rojo); }
+  .pending-input{
+    display:flex; flex-direction:column; gap:3px; margin-top:2px; align-items:center;
+  }
+  .pending-input label{ font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+  .pending-input input{
+    width:70px; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:'Space Mono',monospace; font-size:14px; padding:4px 6px; border-radius:4px; text-align:center;
+  }
+  .pending-input input:focus{ outline:none; border-color:var(--beacon); }
+  .pending-input input[readonly]{ cursor:default; }
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .kpi{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:16px 18px; position:relative; overflow:hidden; text-align:center;
+  }
+  .kpi::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kc,var(--beacon)); }
+  .kpi .num{ font-family:'Space Mono',monospace; font-size:32px; font-weight:700; line-height:1; }
+  .kpi .lbl{ color:var(--text-dim); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-top:6px; }
+  .kpi.verde{ --kc: var(--verde); } .kpi.verde .num{color:var(--verde);}
+  .kpi.amarillo{ --kc: var(--amarillo); } .kpi.amarillo .num{color:var(--amarillo);}
+  .kpi.rojo{ --kc: var(--rojo); } .kpi.rojo .num{color:var(--rojo);}
+  .kpi.sininfo{ --kc: #8B5CF6; } .kpi.sininfo .num{color:#8B5CF6;}
+  .kpi.total .num{color:var(--text);}
+
+  .bottleneck{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:16px 18px; margin-bottom:22px;
+  }
+  .bottleneck h3{
+    margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--text-dim); font-weight:600;
+  }
+  .bl-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .bl-label{ width:150px; font-size:12px; color:var(--text-dim); flex-shrink:0; font-family:'Space Mono',monospace;}
+  .bl-track{ flex:1; height:16px; background:var(--panel-2); border-radius:3px; display:flex; overflow:hidden; }
+  .bl-seg{ height:100%; }
+  .bl-seg.verde{ background:var(--verde); }
+  .bl-seg.amarillo{ background:var(--amarillo); }
+  .bl-seg.rojo{ background:var(--rojo); }
+  .bl-seg.sininfo{ background:#8B5CF6; }
+  .bl-count{ width:56px; text-align:right; font-family:'Space Mono',monospace; font-size:12px; color:var(--text-dim); }
+
+  .filters{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .filters button{
+    background:var(--panel); border:1px solid var(--line); color:var(--text-dim);
+    padding:7px 14px; border-radius:20px; font-size:12px; cursor:pointer;
+    font-family:'Inter',sans-serif; font-weight:600; letter-spacing:.3px;
+    transition:all .15s;
+  }
+  .filters button.active{ background:var(--beacon); color:#06111f; border-color:var(--beacon); }
+  .filters button:hover:not(.active){ border-color:var(--beacon); color:var(--text); }
+
+  table{ width:100%; border-collapse:collapse; }
+  thead th{
+    text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--text-dim); padding:8px 10px; border-bottom:1px solid var(--line);
+    font-weight:600; white-space:nowrap;
+  }
+  tbody tr{
+    border-bottom:1px solid var(--line);
+    animation:flipin .35s ease both;
+  }
+  tbody tr td{ padding:10px; font-size:13px; vertical-align:middle; }
+  tbody tr.overall-rojo{ box-shadow: inset 4px 0 0 var(--rojo); }
+  tbody tr.overall-amarillo{ box-shadow: inset 4px 0 0 var(--amarillo); }
+  tbody tr.overall-verde{ box-shadow: inset 4px 0 0 var(--verde); }
+  .matricula{ font-family:'Space Mono',monospace; font-weight:700; }
+  .ruta{ color:var(--text-dim); font-size:12px; }
+  .badge{
+    display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px;
+    font-weight:700; letter-spacing:.5px;
+  }
+  .badge.INT{ background:#1c3a52; color:#7fc3ea; }
+  .badge.NAC{ background:#2a2447; color:#b39ff0; }
+  .dots{ display:flex; gap:5px; }
+  .dot{
+    width:11px; height:11px; border-radius:2px; position:relative;
+    animation:flip .5s ease both;
+  }
+  .dot.verde{ background:var(--verde); }
+  .dot.amarillo{ background:var(--amarillo); }
+  .dot.rojo{ background:var(--rojo); box-shadow:0 0 6px var(--rojo); }
+  .dot.sin_dato{ background:var(--line); }
+  .hbadge{ font-size:11px; padding:3px 9px; border-radius:3px; font-weight:700; }
+  .hbadge.SI{ background:var(--verde-dim); color:var(--verde); }
+  .hbadge.NO{ background:var(--rojo-dim); color:var(--rojo); }
+  .hbadge.blank{ background:var(--panel-2); color:var(--text-dim); }
+  .obs{ color:var(--text-dim); font-size:11px; max-width:220px; }
+
+  @keyframes flip{ from{ transform:rotateX(90deg); opacity:0;} to{ transform:rotateX(0); opacity:1;} }
+  @keyframes flipin{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .legend{ display:flex; gap:18px; margin:16px 0 4px; font-size:11px; color:var(--text-dim); flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .top-row-2col{ display:grid; grid-template-columns: 1.6fr 1fr; gap:14px; margin-bottom:22px; align-items:stretch; }
+  .ops-summary{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:18px; display:flex; flex-direction:column; gap:16px; justify-content:center;
+  }
+  .ops-status{
+    border-radius:6px; padding:16px; text-align:center;
+    border:1px solid var(--osc, var(--line));
+  }
+  .ops-status.estable{ --osc: var(--verde); background:var(--verde-dim); }
+  .ops-status.alerta{ --osc: var(--amarillo); background:var(--amarillo-dim); }
+  .ops-status.critica{ --osc: var(--rojo); background:var(--rojo-dim); }
+  .ops-status .status-label{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:18px; letter-spacing:1px;
+    color:var(--osc, var(--text));
+  }
+  .ops-otp{ display:flex; align-items:center; justify-content:center; gap:14px; text-align:center; }
+  .ops-otp .num{ font-family:'Space Mono',monospace; font-weight:700; font-size:38px; color:var(--text); }
+  .ops-otp .txt{ text-align:center; }
+  .ops-otp .txt .lbl{ color:var(--text-dim); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .ops-otp .txt .sub{ font-family:'Space Mono',monospace; font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .otp-list{ display:flex; flex-direction:column; gap:6px; width:100%; }
+  .otp-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:4px;
+    padding:6px 10px; font-size:12px;
+  }
+  .otp-item .vuelo{ font-family:'Space Mono',monospace; font-weight:700; color:var(--text); }
+  .otp-item .min{ font-family:'Space Mono',monospace; color:var(--rojo); font-weight:700; }
+  .otp-empty{ color:var(--text-dim); font-size:12px; font-style:italic; text-align:center; }
+
+  .footnote{ margin-top:26px; font-size:11px; color:var(--text-dim); line-height:1.6; border-top:1px solid var(--line); padding-top:14px; }
+
+  .section-box{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:16px 18px; margin-bottom:22px;
+  }
+  .section-box h3{
+    margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--text-dim); font-weight:600; display:flex; justify-content:space-between; align-items:center;
+  }
+  .section-box .actions{ display:flex; gap:8px; }
+  .btn-small{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:6px 12px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer;
+    font-family:'Inter',sans-serif; letter-spacing:.3px;
+  }
+  .btn-small:hover{ border-color:var(--beacon); color:var(--beacon); }
+  .btn-small.primary{ background:var(--beacon); color:#06111f; border-color:var(--beacon); }
+  #log-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  #log-table th{ text-align:left; color:var(--text-dim); font-weight:600; padding:5px 8px; border-bottom:1px solid var(--line); font-size:10px; text-transform:uppercase; }
+  #log-table td{ padding:5px 8px; border-bottom:1px solid var(--line); font-family:'Space Mono',monospace; }
+  #log-empty{ color:var(--text-dim); font-size:12px; font-style:italic; }
+  #summary-output{
+    width:100%; min-height:140px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--text); font-family:'Space Mono',monospace; font-size:12px; border-radius:5px;
+    padding:12px; margin-top:10px; white-space:pre-wrap; resize:vertical;
+  }
+  .copy-feedback{ font-size:11px; color:var(--verde); margin-left:8px; opacity:0; transition:opacity .2s; }
+  .copy-feedback.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="board-header">
+  <div>
+    <div class="board-title">PANEL DE CONTROL <span>·</span> GATE GOURMET</div>
+    <div class="board-sub">MPS <span id="mps-date">08-JUL-2026</span> &nbsp;|&nbsp; Estatus de la operación a las "<b id="status-time">--:--</b>"</div>
+  </div>
+</div>
+
+<div class="kpis-top">
+  <div class="kpi-big day">
+    <div class="num" id="k-total-dia">173</div>
+    <div class="txt">
+      <div class="lbl">Vuelos programados hoy</div>
+      <div class="sub" id="k-nac-int">92 NAC &nbsp;·&nbsp; 81 INT</div>
+    </div>
+  </div>
+  <div class="kpi-big snapshot">
+    <div class="num" id="k-completed-big" style="color:var(--verde)">28</div>
+    <div class="txt">
+      <div class="lbl">Vuelos entregados hoy</div>
+      <div class="sub" id="k-de-programados">de 173 programados</div>
+    </div>
+  </div>
+  <div class="kpi-big pending">
+    <div class="num" id="k-pending">153</div>
+    <div class="txt">
+      <div class="lbl">Faltan por entregar hoy</div>
+      <div class="pending-input" style="display:none;">
+        <input type="number" id="completed-input" value="0" min="0" max="173" readonly>
+        <div id="sync-status" style="font-size:10px; color:var(--text-dim); margin-top:4px; text-align:center;">conectando…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi sininfo"><div class="num" id="k-sininfo">0</div><div class="lbl">Sin información (vencido)</div></div>
+  <div class="kpi verde"><div class="num" id="k-verde">0</div><div class="lbl">En tiempo</div></div>
+  <div class="kpi amarillo"><div class="num" id="k-amarillo">0</div><div class="lbl">Alerta (15–30 min)</div></div>
+  <div class="kpi rojo"><div class="num" id="k-rojo">0</div><div class="lbl">Crítico (&gt;30 min / Holding incompleto)</div></div>
+</div>
+
+<div class="top-row-2col">
+<div class="bottleneck">
+  <h3>¿Dónde se concentra el atraso? — comparación por proceso</h3>
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+    <label for="ref-time" style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">Hora de referencia</label>
+    <input type="datetime-local" id="ref-time" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); font-family:'Space Mono',monospace; font-size:12px; padding:4px 8px; border-radius:4px;">
+    <span style="font-size:11px; color:var(--text-dim);">(vuelos con checkpoint posterior a esta hora no se consideran "sin información")</span>
+  </div>
+  <div id="bl-rows"></div>
+</div>
+
+<div class="ops-summary">
+  <div class="ops-status estable" id="ops-status-box">
+    <div class="status-label" id="ops-status-label">OPERACIÓN ESTABLE</div>
+  </div>
+  <div class="ops-otp">
+    <div class="num" id="k-otp">0</div>
+    <div class="txt">
+      <div class="lbl">Vuelos atrasados (OTP)</div>
+      <div class="sub" id="k-otp-sub">de 0 vuelos entregados</div>
+    </div>
+  </div>
+  <div id="otp-list" class="otp-list"></div>
+</div>
+</div>
+
+<div class="legend">
+  <span><i style="background:var(--verde)"></i> A tiempo (≤15 min)</span>
+  <span><i style="background:var(--amarillo)"></i> Alerta (15–30 min)</span>
+  <span><i style="background:var(--rojo)"></i> Crítico (&gt;30 min)</span>
+  <span><i style="background:#8B5CF6"></i> Sin información (vencido)</span>
+</div>
+
+<div class="filters">
+  <button class="active" data-f="all">Todos</button>
+  <button data-f="entregados">Vuelos entregados</button>
+  <button data-f="rojo">Críticos</button>
+  <button data-f="amarillo">Alerta</button>
+  <button data-f="holding_no">Holding incompleto</button>
+  <button data-f="sin_planta">Salida de planta</button>
+  <button data-f="urgentes">Vuelos urgentes</button>
+</div>
+<div style="font-size:11px; color:var(--text-dim); margin:-8px 0 14px;">"Todos" muestra los últimos 5 vuelos entregados y los próximos 20 por entregar, según la hora actual — se va corriendo solo cada minuto.</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Vuelo / Matrícula</th>
+      <th>Ruta</th>
+      <th>ETD</th>
+      <th>Neg.</th>
+      <th>ABM</th>
+      <th>Cocina</th>
+      <th>Ing. Apto</th>
+      <th>Inicio Carg.</th>
+      <th>Fin Carg.</th>
+      <th>Holding</th>
+      <th>Observación</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<div class="section-box">
+  <h3>
+    Bitácora del turno
+    <div class="actions">
+      <button class="btn-small primary" id="btn-log-now">Registrar snapshot manual</button>
+      <button class="btn-small" id="btn-log-copy">Copiar bitácora</button>
+      <span class="copy-feedback" id="log-copy-feedback">¡Copiado!</span>
+    </div>
+  </h3>
+  <table id="log-table">
+    <thead>
+      <tr><th>Hora</th><th>Estado</th><th>Entregados</th><th>Faltan</th><th>Crítico</th><th>Alerta</th><th>En tiempo</th></tr>
+    </thead>
+    <tbody id="log-body"></tbody>
+  </table>
+  <div id="log-empty">Se registra un snapshot automático cada 30 minutos. También puedes registrar uno manual con el botón de arriba.</div>
+</div>
+
+<div class="section-box">
+  <h3>
+    Resumen para traspaso de turno
+    <div class="actions">
+      <button class="btn-small primary" id="btn-summary-gen">Generar resumen</button>
+      <button class="btn-small" id="btn-summary-copy">Copiar</button>
+      <span class="copy-feedback" id="summary-copy-feedback">¡Copiado!</span>
+    </div>
+  </h3>
+  <textarea id="summary-output" readonly placeholder="Pulsa &quot;Generar resumen&quot; para armar el texto de traspaso con el estado actual del panel..."></textarea>
+</div>
+
+<div class="footnote">
+  <b>Este panel ahora lee la MPS en vivo</b> directamente desde Google Sheets (mismo archivo de siempre) cada vez que lo abres y cada 5 minutos mientras quede abierto.
+  Detecta automáticamente el día de hoy dentro de la hoja y excluye filas de servicio (barridos, comisariatos, stand by). Vuelos sin datos aún (procesos que todavía no ocurren)
+  se muestran como "sin información" en vez de forzar un estado. <span id="sync-fullstatus" style="color:var(--text-dim);">conectando…</span>
+  <br><br>
+  El estado de <b>ABM / Cocina / Ingreso Apto / Carguío</b> compara hora teórica vs. real de cada proceso. El estado de <b>Holding</b> refleja el campo "¿Vuelo completo?" de la planilla,
+  ya que ese proceso se controla por completitud del armado, no por una hora real de ingreso.
+</div>
+
+<script>
+let DATA = [{"arribo": "", "salida": "AV0240", "matricula": "AV0240", "tipo": "A320", "config": "AVIANCA", "origen": "", "destino": "BOG", "negocio": "INT", "etd": "0:30", "consolidador": "Ricardo Cáceres", "holding_teo": "16:40", "holding_limite": "17:40", "holding_completo": "SI", "holding_coment": "", "abm_teo": "22:20", "abm_real": "20:15", "cocina_teo": "22:40", "cocina_real": "20:50", "apto_teo": "23:05", "apto_real": "21:11", "carg_ini_teo": "23:35", "carg_ini_real": "23:30", "carg_fin_teo": "0:10", "carg_fin_real": "23:42", "obs": "", "delays": {"abm": -125, "cocina": -110, "apto": -114, "carg_ini": -5, "carg_fin": -28}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "545", "salida": "504", "matricula": "CC-BBB", "tipo": "B787", "config": "PASAJERO", "origen": "EZE", "destino": "MIA", "negocio": "INT", "etd": "0:40", "consolidador": "Ricardo Cáceres", "holding_teo": "16:25", "holding_limite": "17:25", "holding_completo": "SI", "holding_coment": "", "abm_teo": "21:50", "abm_real": "21:30", "cocina_teo": "22:25", "cocina_real": "22:01", "apto_teo": "22:55", "apto_real": "22:15", "carg_ini_teo": "23:00", "carg_ini_real": "22:38", "carg_fin_teo": "23:41", "carg_fin_real": "0:06", "obs": "20/220", "delays": {"abm": -20, "cocina": -24, "apto": -40, "carg_ini": -22, "carg_fin": 25}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "amarillo"}, "overall": "amarillo"}, {"arribo": "1447", "salida": "1446", "matricula": "CC-CYJ", "tipo": "A319", "config": "PASAJERO", "origen": "GYE", "destino": "GYE", "negocio": "INT", "etd": "0:45", "consolidador": "Betzabeth Hernández", "holding_teo": "16:55", "holding_limite": "17:55", "holding_completo": "SI", "holding_coment": "", "abm_teo": "22:35", "abm_real": "21:45", "cocina_teo": "22:55", "cocina_real": "22:05", "apto_teo": "23:20", "apto_real": "22:25", "carg_ini_teo": "23:50", "carg_ini_real": "23:58", "carg_fin_teo": "0:25", "carg_fin_real": "0:28", "obs": "84 / 23:50 en puente", "delays": {"abm": -50, "cocina": -50, "apto": -55, "carg_ini": 8, "carg_fin": 3}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "8054", "salida": "8055", "matricula": "PS-LBD", "tipo": "A321", "config": "PASAJERO", "origen": "GRU", "destino": "GRU", "negocio": "INT", "etd": "0:50", "consolidador": "Ricardo Cáceres", "holding_teo": "17:00", "holding_limite": "18:00", "holding_completo": "SI", "holding_coment": "", "abm_teo": "22:40", "abm_real": "22:20", "cocina_teo": "23:00", "cocina_real": "22:47", "apto_teo": "23:25", "apto_real": "23:02", "carg_ini_teo": "23:55", "carg_ini_real": "23:40", "carg_fin_teo": "0:30", "carg_fin_real": "0:10", "obs": "153", "delays": {"abm": -20, "cocina": -13, "apto": -23, "carg_ini": -15, "carg_fin": -20}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "VESTIDO", "salida": "805", "matricula": "CC-BGC", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "MEL", "negocio": "INT", "etd": "1:05", "consolidador": "Manuel Jimenez", "holding_teo": "16:50", "holding_limite": "17:50", "holding_completo": "SI", "holding_coment": "", "abm_teo": "22:15", "abm_real": "22:05", "cocina_teo": "22:50", "cocina_real": "22:50", "apto_teo": "23:15", "apto_real": "23:05", "carg_ini_teo": "23:25", "carg_ini_real": "23:16", "carg_fin_teo": "0:06", "carg_fin_real": "23:51", "obs": "27/244", "delays": {"abm": -10, "cocina": 0, "apto": -10, "carg_ini": -9, "carg_fin": -15}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "VESTIDO", "salida": "809", "matricula": "CC-BGN", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "SYD", "negocio": "INT", "etd": "1:35", "consolidador": "Betzabeth Hernández", "holding_teo": "17:20", "holding_limite": "18:20", "holding_completo": "SI", "holding_coment": "", "abm_teo": "22:45", "abm_real": "22:45", "cocina_teo": "23:20", "cocina_real": "23:03", "apto_teo": "23:45", "apto_real": "23:21", "carg_ini_teo": "23:55", "carg_ini_real": "23:41", "carg_fin_teo": "0:36", "carg_fin_real": "0:43", "obs": "30/235", "delays": {"abm": 0, "cocina": -17, "apto": -24, "carg_ini": -14, "carg_fin": 7}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "", "salida": "754", "matricula": "CC-DII", "tipo": "A320", "config": "Vantrip Fresh", "origen": "", "destino": "GIG", "negocio": "INT", "etd": "3:51", "consolidador": "GABRIEL ROBLES", "holding_teo": "20:01", "holding_limite": "21:01", "holding_completo": "SI", "holding_coment": "", "abm_teo": "1:41", "abm_real": "1:00", "cocina_teo": "2:01", "cocina_real": "1:15", "apto_teo": "2:26", "apto_real": "1:25", "carg_ini_teo": "2:56", "carg_ini_real": "2:50", "carg_fin_teo": "3:31", "carg_fin_real": "3:00", "obs": "", "delays": {"abm": -41, "cocina": -46, "apto": -61, "carg_ini": -6, "carg_fin": -31}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "2371", "salida": "2370", "matricula": "CC-BAA", "tipo": "A320", "config": "PASAJERO", "origen": "LIM", "destino": "LIM", "negocio": "INT", "etd": "4:10", "consolidador": "Manuel Jimenez", "holding_teo": "20:20", "holding_limite": "21:20", "holding_completo": "SI", "holding_coment": "", "abm_teo": "2:00", "abm_real": "2:00", "cocina_teo": "2:20", "cocina_real": "2:20", "apto_teo": "2:45", "apto_real": "2:42", "carg_ini_teo": "3:15", "carg_ini_real": "3:32", "carg_fin_teo": "3:50", "carg_fin_real": "3:50", "obs": "en puente 3:27", "delays": {"abm": 0, "cocina": 0, "apto": -3, "carg_ini": 17, "carg_fin": 0}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "amarillo", "carg_fin": "verde"}, "overall": "amarillo"}, {"arribo": "385", "salida": "57", "matricula": "CC-BEE", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "PMC", "negocio": "1", "etd": "4:31", "consolidador": "", "holding_teo": "20:41", "holding_limite": "21:41", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "2:21", "cocina_teo": "1", "cocina_real": "2:41", "apto_teo": "1", "apto_real": "3:06", "carg_ini_teo": "1", "carg_ini_real": "3:36", "carg_fin_teo": "1", "carg_fin_real": "4:11", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "-", "salida": "346", "matricula": "PR-TYU", "tipo": "A320", "config": "ORIGINATOR", "origen": "", "destino": "ANF", "negocio": "NAC", "etd": "4:31", "consolidador": "", "holding_teo": "20:41", "holding_limite": "21:41", "holding_completo": "", "holding_coment": "", "abm_teo": "2:21", "abm_real": "2:21", "cocina_teo": "2:41", "cocina_real": "2:41", "apto_teo": "3:06", "apto_real": "3:06", "carg_ini_teo": "3:36", "carg_ini_real": "3:36", "carg_fin_teo": "4:11", "carg_fin_real": "4:00", "obs": "2 Tramos", "delays": {"abm": 0, "cocina": 0, "apto": 0, "carg_ini": 0, "carg_fin": -11}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "507", "salida": "81", "matricula": "CC-BEG", "tipo": "A321", "config": "CANASTA", "origen": "FLN", "destino": "PUQ", "negocio": "1", "etd": "4:32", "consolidador": "", "holding_teo": "20:42", "holding_limite": "21:42", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "2:22", "cocina_teo": "1", "cocina_real": "2:42", "apto_teo": "1", "apto_real": "3:07", "carg_ini_teo": "1", "carg_ini_real": "3:37", "carg_fin_teo": "1", "carg_fin_real": "4:12", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "1857", "salida": "140", "matricula": "CC-BEN", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "CJC", "negocio": "1", "etd": "4:32", "consolidador": "", "holding_teo": "20:42", "holding_limite": "21:42", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "2:22", "cocina_teo": "1", "cocina_real": "2:42", "apto_teo": "1", "apto_real": "3:07", "carg_ini_teo": "1", "carg_ini_real": "3:37", "carg_fin_teo": "0", "carg_fin_real": "4:12", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "773", "salida": "864", "matricula": "CC-BAY", "tipo": "A320", "config": "PASAJERO", "origen": "GIG", "destino": "VVI", "negocio": "INT", "etd": "4:36", "consolidador": "Betzabeth Hernández", "holding_teo": "20:46", "holding_limite": "21:46", "holding_completo": "SI", "holding_coment": "", "abm_teo": "2:26", "abm_real": "2:26", "cocina_teo": "2:46", "cocina_real": "2:46", "apto_teo": "3:11", "apto_real": "3:11", "carg_ini_teo": "3:41", "carg_ini_real": "3:29", "carg_fin_teo": "4:16", "carg_fin_real": "4:05", "obs": "", "delays": {"abm": 0, "cocina": 0, "apto": 0, "carg_ini": -12, "carg_fin": -11}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "266", "salida": "180", "matricula": "CC-BEB", "tipo": "A321", "config": "ORIGINATOR", "origen": "PMC", "destino": "ARI", "negocio": "NAC", "etd": "4:39", "consolidador": "", "holding_teo": "20:49", "holding_limite": "21:49", "holding_completo": "", "holding_coment": "", "abm_teo": "2:29", "abm_real": "2:29", "cocina_teo": "2:49", "cocina_real": "2:49", "apto_teo": "3:14", "apto_real": "3:14", "carg_ini_teo": "3:44", "carg_ini_real": "3:49", "carg_fin_teo": "4:19", "carg_fin_real": "4:02", "obs": "", "delays": {"abm": 0, "cocina": 0, "apto": 0, "carg_ini": 5, "carg_fin": -17}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "391", "salida": "120", "matricula": "PR-TYQ", "tipo": "A320", "config": "ORIGINATOR", "origen": "CJC", "destino": "ANF", "negocio": "1", "etd": "4:47", "consolidador": "", "holding_teo": "20:57", "holding_limite": "21:57", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "2:37", "cocina_teo": "1", "cocina_real": "2:57", "apto_teo": "1", "apto_real": "3:22", "carg_ini_teo": "1", "carg_ini_real": "3:52", "carg_fin_teo": "0", "carg_fin_real": "4:27", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "5121", "salida": "762", "matricula": "CC-AWY", "tipo": "A320", "config": "Barset T", "origen": "EPOS", "destino": "GIG", "negocio": "INT", "etd": "4:52", "consolidador": "GABRIEL ROBLES", "holding_teo": "21:02", "holding_limite": "22:02", "holding_completo": "SI", "holding_coment": "", "abm_teo": "2:42", "abm_real": "1:00", "cocina_teo": "3:02", "cocina_real": "1:15", "apto_teo": "3:27", "apto_real": "1:25", "carg_ini_teo": "3:57", "carg_ini_real": "4:06", "carg_fin_teo": "4:32", "carg_fin_real": "4:15", "obs": "", "delays": {"abm": -102, "cocina": -107, "apto": -122, "carg_ini": 9, "carg_fin": -17}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "5106", "salida": "776", "matricula": "CC-AWC", "tipo": "A320", "config": "Barset extra", "origen": "EPOS", "destino": "GRU", "negocio": "INT", "etd": "5:00", "consolidador": "GABRIEL ROBLES", "holding_teo": "21:10", "holding_limite": "22:10", "holding_completo": "SI", "holding_coment": "", "abm_teo": "2:50", "abm_real": "2:21", "cocina_teo": "3:10", "cocina_real": "2:41", "apto_teo": "3:35", "apto_real": "3:06", "carg_ini_teo": "4:05", "carg_ini_real": "4:15", "carg_fin_teo": "4:40", "carg_fin_real": "4:32", "obs": "DIO // AWC BARSET EXTRA EPOS", "delays": {"abm": -29, "cocina": -29, "apto": -29, "carg_ini": 10, "carg_fin": -8}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "945", "salida": "142", "matricula": "CC-BEK", "tipo": "A321", "config": "ORIGINATOR", "origen": "ARI", "destino": "CJC", "negocio": "1", "etd": "5:02", "consolidador": "", "holding_teo": "21:12", "holding_limite": "22:12", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "2:52", "cocina_teo": "1", "cocina_real": "3:12", "apto_teo": "1", "apto_real": "3:37", "carg_ini_teo": "1", "carg_ini_real": "4:07", "carg_fin_teo": "0", "carg_fin_real": "4:42", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "763", "salida": "776", "matricula": "CC-BHE", "tipo": "A320", "config": "PASAJERO", "origen": "GRU", "destino": "GIG", "negocio": "INT", "etd": "5:10", "consolidador": "luis orellana", "holding_teo": "21:20", "holding_limite": "22:20", "holding_completo": "SI", "holding_coment": "", "abm_teo": "3:00", "abm_real": "3:00", "cocina_teo": "3:20", "cocina_real": "3:20", "apto_teo": "3:45", "apto_real": "3:45", "carg_ini_teo": "4:15", "carg_ini_real": "4:15", "carg_fin_teo": "4:50", "carg_fin_real": "4:40", "obs": "", "delays": {"abm": 0, "cocina": 0, "apto": 0, "carg_ini": 0, "carg_fin": -10}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "393", "salida": "160", "matricula": "CC-BEA", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "IQQ", "negocio": "NAC", "etd": "5:10", "consolidador": "", "holding_teo": "21:20", "holding_limite": "22:20", "holding_completo": "", "holding_coment": "", "abm_teo": "3:00", "abm_real": "2:26", "cocina_teo": "3:20", "cocina_real": "2:46", "apto_teo": "3:45", "apto_real": "3:11", "carg_ini_teo": "4:15", "carg_ini_real": "4:15", "carg_fin_teo": "4:50", "carg_fin_real": "4:30", "obs": "", "delays": {"abm": -34, "cocina": -34, "apto": -34, "carg_ini": 0, "carg_fin": -20}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "711", "salida": "626", "matricula": "CC-BBC", "tipo": "B787", "config": "PASAJERO", "origen": "BOG", "destino": "GRU", "negocio": "INT", "etd": "5:10", "consolidador": "DEBORA GUZMAN", "holding_teo": "20:55", "holding_limite": "21:55", "holding_completo": "SI", "holding_coment": "", "abm_teo": "2:20", "abm_real": "2:20", "cocina_teo": "2:55", "cocina_real": "2:55", "apto_teo": "3:25", "apto_real": "3:25", "carg_ini_teo": "3:30", "carg_ini_real": "4:05", "carg_fin_teo": "4:11", "carg_fin_real": "4:38", "obs": "3:55 en puente", "delays": {"abm": 0, "cocina": 0, "apto": 0, "carg_ini": 35, "carg_fin": 27}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "rojo", "carg_fin": "amarillo"}, "overall": "rojo"}, {"arribo": "-", "salida": "144", "matricula": "CC-BHU", "tipo": "A320", "config": "ORIGINATOR", "origen": "", "destino": "CJC", "negocio": "NAC", "etd": "5:27", "consolidador": "", "holding_teo": "21:37", "holding_limite": "22:37", "holding_completo": "", "holding_coment": "", "abm_teo": "3:17", "abm_real": "2:29", "cocina_teo": "3:37", "cocina_real": "2:49", "apto_teo": "4:02", "apto_real": "3:14", "carg_ini_teo": "4:32", "carg_ini_real": "4:38", "carg_fin_teo": "5:07", "carg_fin_real": "4:57", "obs": "", "delays": {"abm": -48, "cocina": -48, "apto": -48, "carg_ini": 6, "carg_fin": -10}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "357", "salida": "122", "matricula": "CC-BEI", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "ANF", "negocio": "NAC", "etd": "5:32", "consolidador": "", "holding_teo": "21:42", "holding_limite": "22:42", "holding_completo": "", "holding_coment": "", "abm_teo": "3:22", "abm_real": "2:21", "cocina_teo": "3:42", "cocina_real": "2:41", "apto_teo": "4:07", "apto_real": "3:06", "carg_ini_teo": "4:37", "carg_ini_real": "4:50", "carg_fin_teo": "5:12", "carg_fin_real": "5:06", "obs": "", "delays": {"abm": -61, "cocina": -61, "apto": -61, "carg_ini": 13, "carg_fin": -6}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "2377", "salida": "2378", "matricula": "CC-BAL", "tipo": "A320", "config": "PASAJERO", "origen": "LIM", "destino": "LIM", "negocio": "INT", "etd": "5:40", "consolidador": "Betzabeth Hernández", "holding_teo": "21:50", "holding_limite": "22:50", "holding_completo": "SI", "holding_coment": "", "abm_teo": "3:30", "abm_real": "3:30", "cocina_teo": "3:50", "cocina_real": "4:00", "apto_teo": "4:15", "apto_real": "4:30", "carg_ini_teo": "4:45", "carg_ini_real": "4:56", "carg_fin_teo": "5:20", "carg_fin_real": "5:25", "obs": "EN PUENTE 4:46", "delays": {"abm": 0, "cocina": 10, "apto": 15, "carg_ini": 11, "carg_fin": 5}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "187", "salida": "124", "matricula": "CC-BEF", "tipo": "A321", "config": "ORIGINATOR", "origen": "ARI", "destino": "ANF", "negocio": "NAC", "etd": "5:53", "consolidador": "", "holding_teo": "22:03", "holding_limite": "23:03", "holding_completo": "", "holding_coment": "", "abm_teo": "3:43", "abm_real": "2:22", "cocina_teo": "4:03", "cocina_real": "2:42", "apto_teo": "4:28", "apto_real": "3:05", "carg_ini_teo": "4:58", "carg_ini_real": "4:57", "carg_fin_teo": "5:33", "carg_fin_real": "5:17", "obs": "", "delays": {"abm": -81, "cocina": -81, "apto": -83, "carg_ini": -1, "carg_fin": -16}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "761", "salida": "162", "matricula": "CC-BHJ", "tipo": "A320", "config": "ORIGINATOR", "origen": "GRU", "destino": "IQQ", "negocio": "NAC", "etd": "6:00", "consolidador": "", "holding_teo": "22:10", "holding_limite": "23:10", "holding_completo": "", "holding_coment": "", "abm_teo": "3:50", "abm_real": "2:21", "cocina_teo": "4:10", "cocina_real": "2:41", "apto_teo": "4:35", "apto_real": "3:06", "carg_ini_teo": "5:05", "carg_ini_real": "5:12", "carg_fin_teo": "5:40", "carg_fin_real": "5:37", "obs": "2 tramos", "delays": {"abm": -89, "cocina": -89, "apto": -89, "carg_ini": 7, "carg_fin": -3}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "647", "salida": "718", "matricula": "CC-BHN", "tipo": "A320", "config": "PASAJERO", "origen": "LIM", "destino": "FLN", "negocio": "INT", "etd": "6:00", "consolidador": "LUIS ORELLANA", "holding_teo": "22:10", "holding_limite": "23:10", "holding_completo": "SI", "holding_coment": "", "abm_teo": "3:50", "abm_real": "3:50", "cocina_teo": "4:10", "cocina_real": "4:15", "apto_teo": "4:35", "apto_real": "4:45", "carg_ini_teo": "5:05", "carg_ini_real": "5:18", "carg_fin_teo": "5:40", "carg_fin_real": "5:42", "obs": "", "delays": {"abm": 0, "cocina": 5, "apto": 10, "carg_ini": 13, "carg_fin": 2}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "759", "salida": "146", "matricula": "PR-TYI", "tipo": "A320", "config": "ORIGINATOR", "origen": "GRU", "destino": "CJC", "negocio": "1", "etd": "6:02", "consolidador": "", "holding_teo": "22:12", "holding_limite": "23:12", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "3:52", "cocina_teo": "1", "cocina_real": "4:12", "apto_teo": "1", "apto_real": "4:37", "carg_ini_teo": "1", "carg_ini_real": "5:07", "carg_fin_teo": "1", "carg_fin_real": "5:42", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "-", "salida": "3", "matricula": "PR-TYK", "tipo": "A320", "config": "ORIGINATOR", "origen": "", "destino": "CCP", "negocio": "NAC", "etd": "6:04", "consolidador": "", "holding_teo": "22:14", "holding_limite": "23:14", "holding_completo": "", "holding_coment": "", "abm_teo": "3:54", "abm_real": "3:00", "cocina_teo": "4:14", "cocina_real": "3:20", "apto_teo": "4:39", "apto_real": "3:45", "carg_ini_teo": "5:09", "carg_ini_real": "5:07", "carg_fin_teo": "5:44", "carg_fin_real": "5:37", "obs": "", "delays": {"abm": -54, "cocina": -54, "apto": -54, "carg_ini": -2, "carg_fin": -7}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "", "salida": "770", "matricula": "CC-DIZ", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "GRU", "negocio": "INT", "etd": "6:10", "consolidador": "GABRIEL ROBLES", "holding_teo": "22:20", "holding_limite": "23:20", "holding_completo": "SI", "holding_coment": "", "abm_teo": "4:00", "abm_real": "2:22", "cocina_teo": "4:20", "cocina_real": "2:42", "apto_teo": "4:45", "apto_real": "3:05", "carg_ini_teo": "5:15", "carg_ini_real": "5:20", "carg_fin_teo": "5:50", "carg_fin_real": "5:29", "obs": "", "delays": {"abm": -98, "cocina": -98, "apto": -100, "carg_ini": 5, "carg_fin": -21}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "521", "salida": "126", "matricula": "CC-BHM", "tipo": "A320", "config": "ORIGINATOR", "origen": "LIM", "destino": "ANF", "negocio": "NAC", "etd": "6:11", "consolidador": "", "holding_teo": "22:21", "holding_limite": "23:21", "holding_completo": "", "holding_coment": "", "abm_teo": "4:01", "abm_real": "2:22", "cocina_teo": "4:21", "cocina_real": "2:42", "apto_teo": "4:46", "apto_real": "3:20", "carg_ini_teo": "5:16", "carg_ini_real": "5:16", "carg_fin_teo": "5:51", "carg_fin_real": "5:41", "obs": "2 tramos", "delays": {"abm": -99, "cocina": -99, "apto": -86, "carg_ini": 0, "carg_fin": -10}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "1861", "salida": "354", "matricula": "CC-BEM", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "ANF", "negocio": "NAC", "etd": "6:22", "consolidador": "", "holding_teo": "22:32", "holding_limite": "23:32", "holding_completo": "", "holding_coment": "", "abm_teo": "4:12", "abm_real": "4:10", "cocina_teo": "4:32", "cocina_real": "4:40", "apto_teo": "4:57", "apto_real": "5:05", "carg_ini_teo": "5:27", "carg_ini_real": "5:26", "carg_fin_teo": "6:02", "carg_fin_real": "6:00", "obs": "2 tramos", "delays": {"abm": -2, "cocina": 8, "apto": 8, "carg_ini": -1, "carg_fin": -2}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "454", "salida": "1151", "matricula": "CC-BAM", "tipo": "A320", "config": "ORIGINATOR", "origen": "AEP", "destino": "BBA", "negocio": "NAC", "etd": "6:36", "consolidador": "", "holding_teo": "22:46", "holding_limite": "23:46", "holding_completo": "", "holding_coment": "", "abm_teo": "4:26", "abm_real": "2:29", "cocina_teo": "4:46", "cocina_real": "2:49", "apto_teo": "5:11", "apto_real": "3:14", "carg_ini_teo": "5:41", "carg_ini_real": "5:45", "carg_fin_teo": "6:16", "carg_fin_real": "6:05", "obs": "2 tramos", "delays": {"abm": -117, "cocina": -117, "apto": -117, "carg_ini": 4, "carg_fin": -11}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "", "salida": "AV0098", "matricula": "AV0098", "tipo": "A330", "config": "AVIANCA", "origen": "", "destino": "BOG", "negocio": "INT", "etd": "6:40", "consolidador": "Bryan Rodriguez", "holding_teo": "22:25", "holding_limite": "23:25", "holding_completo": "", "holding_coment": "", "abm_teo": "3:50", "abm_real": "3:30", "cocina_teo": "4:25", "cocina_real": "4:00", "apto_teo": "4:55", "apto_real": "4:30", "carg_ini_teo": "5:00", "carg_ini_real": "5:40", "carg_fin_teo": "5:41", "carg_fin_real": "5:52", "obs": "", "delays": {"abm": -20, "cocina": -25, "apto": -25, "carg_ini": 40, "carg_fin": 11}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "rojo", "carg_fin": "verde"}, "overall": "rojo"}, {"arribo": "", "salida": "60", "matricula": "CC-AWT", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "ANF", "negocio": "NAC", "etd": "6:53", "consolidador": "GABRIEL ROBLES", "holding_teo": "23:03", "holding_limite": "0:03", "holding_completo": "SI", "holding_coment": "", "abm_teo": "4:43", "abm_real": "3:50", "cocina_teo": "5:03", "cocina_real": "4:15", "apto_teo": "5:28", "apto_real": "4:45", "carg_ini_teo": "5:58", "carg_ini_real": "5:50", "carg_fin_teo": "6:33", "carg_fin_real": "5:55", "obs": "", "delays": {"abm": -53, "cocina": -48, "apto": -43, "carg_ini": -8, "carg_fin": -38}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "379", "salida": "148", "matricula": "CC-BEJ", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "CJC", "negocio": "", "etd": "7:00", "consolidador": "", "holding_teo": "23:10", "holding_limite": "0:10", "holding_completo": "", "holding_coment": "", "abm_teo": "4:50", "abm_real": "2:26", "cocina_teo": "5:10", "cocina_real": "2:46", "apto_teo": "5:35", "apto_real": "3:11", "carg_ini_teo": "6:05", "carg_ini_real": "5:55", "carg_fin_teo": "6:40", "carg_fin_real": "6:16", "obs": "2 tramos", "delays": {"abm": -144, "cocina": -144, "apto": -144, "carg_ini": -10, "carg_fin": -24}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "88", "salida": "900", "matricula": "CC-BAE", "tipo": "A320", "config": "ORIGINATOR", "origen": "PUQ", "destino": "IQQ", "negocio": "NAC", "etd": "7:00", "consolidador": "", "holding_teo": "23:10", "holding_limite": "0:10", "holding_completo": "", "holding_coment": "", "abm_teo": "4:50", "abm_real": "3:50", "cocina_teo": "5:10", "cocina_real": "4:15", "apto_teo": "5:35", "apto_real": "4:45", "carg_ini_teo": "6:05", "carg_ini_real": "6:55", "carg_fin_teo": "6:40", "carg_fin_real": "7:18", "obs": "en puente 6:46", "delays": {"abm": -60, "cocina": -55, "apto": -50, "carg_ini": 50, "carg_fin": 38}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "rojo", "carg_fin": "rojo"}, "overall": "rojo"}, {"arribo": "-", "salida": "762", "matricula": "CC-BAI", "tipo": "A320", "config": "PASAJERO", "origen": "VEST", "destino": "GRU", "negocio": "INT", "etd": "7:00", "consolidador": "Jahiro Galaz", "holding_teo": "23:10", "holding_limite": "0:10", "holding_completo": "", "holding_coment": "", "abm_teo": "4:50", "abm_real": "4:45", "cocina_teo": "5:10", "cocina_real": "5:25", "apto_teo": "5:35", "apto_real": "5:45", "carg_ini_teo": "6:05", "carg_ini_real": "6:12", "carg_fin_teo": "6:40", "carg_fin_real": "6:39", "obs": "", "delays": {"abm": -5, "cocina": 15, "apto": 10, "carg_ini": 7, "carg_fin": -1}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "-", "salida": "112", "matricula": "CC-BAK", "tipo": "A320", "config": "ORIGINATOR", "origen": "", "destino": "CPO", "negocio": "NAC", "etd": "7:14", "consolidador": "", "holding_teo": "23:24", "holding_limite": "0:24", "holding_completo": "", "holding_coment": "", "abm_teo": "5:04", "abm_real": "2:22", "cocina_teo": "5:24", "cocina_real": "2:42", "apto_teo": "5:49", "apto_real": "3:20", "carg_ini_teo": "6:19", "carg_ini_real": "6:25", "carg_fin_teo": "6:54", "carg_fin_real": "6:39", "obs": "", "delays": {"abm": -162, "cocina": -162, "apto": -149, "carg_ini": 6, "carg_fin": -15}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "175", "salida": "128", "matricula": "CC-COO", "tipo": "A320", "config": "ORIGINATOR", "origen": "IQQ", "destino": "ANF", "negocio": "NAC", "etd": "7:20", "consolidador": "", "holding_teo": "23:30", "holding_limite": "0:30", "holding_completo": "", "holding_coment": "", "abm_teo": "5:10", "abm_real": "5:10", "cocina_teo": "5:30", "cocina_real": "5:45", "apto_teo": "5:55", "apto_real": "6:05", "carg_ini_teo": "6:25", "carg_ini_real": "6:25", "carg_fin_teo": "7:00", "carg_fin_real": "6:50", "obs": "", "delays": {"abm": 0, "cocina": 15, "apto": 10, "carg_ini": 0, "carg_fin": -10}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "363", "salida": "21", "matricula": "CC-BEQ", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "ZCO", "negocio": "NAC", "etd": "7:29", "consolidador": "", "holding_teo": "23:39", "holding_limite": "0:39", "holding_completo": "", "holding_coment": "", "abm_teo": "5:19", "abm_real": "3:00", "cocina_teo": "5:39", "cocina_real": "3:20", "apto_teo": "6:04", "apto_real": "3:45", "carg_ini_teo": "6:34", "carg_ini_real": "6:37", "carg_fin_teo": "7:09", "carg_fin_real": "6:56", "obs": "", "delays": {"abm": -139, "cocina": -139, "apto": -139, "carg_ini": 3, "carg_fin": -13}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "907", "salida": "7", "matricula": "CC-COK", "tipo": "A320", "config": "ORIGINATOR", "origen": "IQQ", "destino": "CCP", "negocio": "NAC", "etd": "7:30", "consolidador": "", "holding_teo": "23:40", "holding_limite": "0:40", "holding_completo": "", "holding_coment": "", "abm_teo": "5:20", "abm_real": "4:10", "cocina_teo": "5:40", "cocina_real": "4:40", "apto_teo": "6:05", "apto_real": "5:05", "carg_ini_teo": "6:35", "carg_ini_real": "6:50", "carg_fin_teo": "7:10", "carg_fin_real": "7:13", "obs": "Cargar con el LA360", "delays": {"abm": -70, "cocina": -60, "apto": -60, "carg_ini": 15, "carg_fin": 3}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "5119", "salida": "34", "matricula": "CC-DIL", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "CJC", "negocio": "NAC", "etd": "7:30", "consolidador": "GABRIEL ROBLES", "holding_teo": "23:40", "holding_limite": "0:40", "holding_completo": "SI", "holding_coment": "", "abm_teo": "5:20", "abm_real": "3:50", "cocina_teo": "5:40", "cocina_real": "4:15", "apto_teo": "6:05", "apto_real": "4:45", "carg_ini_teo": "6:35", "carg_ini_real": "7:00", "carg_fin_teo": "7:10", "carg_fin_real": "7:15", "obs": "DEVOLVER BARSET POR FUMIGACION", "delays": {"abm": -90, "cocina": -85, "apto": -80, "carg_ini": 25, "carg_fin": 5}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "amarillo", "carg_fin": "verde"}, "overall": "amarillo"}, {"arribo": "771", "salida": "774", "matricula": "CC-CQM", "tipo": "A320", "config": "PASAJERO", "origen": "GIG", "destino": "GIG", "negocio": "INT", "etd": "7:35", "consolidador": "DEBORA GUZMAN", "holding_teo": "23:45", "holding_limite": "0:45", "holding_completo": "", "holding_coment": "", "abm_teo": "5:25", "abm_real": "5:25", "cocina_teo": "5:45", "cocina_real": "5:45", "apto_teo": "6:10", "apto_real": "6:17", "carg_ini_teo": "6:40", "carg_ini_real": "6:27", "carg_fin_teo": "7:15", "carg_fin_real": "7:06", "obs": "VEST", "delays": {"abm": 0, "cocina": 0, "apto": 7, "carg_ini": -13, "carg_fin": -9}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "2439", "salida": "73", "matricula": "CC-BHK", "tipo": "A320", "config": "ORIGINATOR", "origen": "LIM", "destino": "BBA", "negocio": "NAC", "etd": "7:36", "consolidador": "", "holding_teo": "23:46", "holding_limite": "0:46", "holding_completo": "", "holding_coment": "", "abm_teo": "5:26", "abm_real": "3:30", "cocina_teo": "5:46", "cocina_real": "4:00", "apto_teo": "6:11", "apto_real": "4:30", "carg_ini_teo": "6:41", "carg_ini_real": "6:40", "carg_fin_teo": "7:16", "carg_fin_real": "6:48", "obs": "2 tramos", "delays": {"abm": -116, "cocina": -106, "apto": -101, "carg_ini": -1, "carg_fin": -28}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "777", "salida": "650", "matricula": "PR-TYV", "tipo": "A320", "config": "PASAJERO", "origen": "GIG", "destino": "LIM", "negocio": "INT", "etd": "7:50", "consolidador": "LUIS ORELLANA", "holding_teo": "0:00", "holding_limite": "1:00", "holding_completo": "SI", "holding_coment": "", "abm_teo": "5:40", "abm_real": "4:45", "cocina_teo": "6:00", "cocina_real": "5:25", "apto_teo": "6:25", "apto_real": "5:45", "carg_ini_teo": "6:55", "carg_ini_real": "6:49", "carg_fin_teo": "7:30", "carg_fin_real": "7:20", "obs": "", "delays": {"abm": -55, "cocina": -35, "apto": -40, "carg_ini": -6, "carg_fin": -10}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "779", "salida": "100", "matricula": "CC-BAZ", "tipo": "A320", "config": "ORIGINATOR", "origen": "GIG", "destino": "LSC", "negocio": "NAC", "etd": "8:00", "consolidador": "", "holding_teo": "0:10", "holding_limite": "1:10", "holding_completo": "", "holding_coment": "", "abm_teo": "5:50", "abm_real": "3:00", "cocina_teo": "6:10", "cocina_real": "3:20", "apto_teo": "6:35", "apto_real": "3:45", "carg_ini_teo": "7:05", "carg_ini_real": "7:03", "carg_fin_teo": "7:40", "carg_fin_real": "7:27", "obs": "Cargar con el LA154", "delays": {"abm": -170, "cocina": -170, "apto": -170, "carg_ini": -2, "carg_fin": -13}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "371", "salida": "114", "matricula": "PR-TYM", "tipo": "A320", "config": "ORIGINATOR", "origen": "CJC", "destino": "CPO", "negocio": "NAC", "etd": "8:06", "consolidador": "", "holding_teo": "0:16", "holding_limite": "1:16", "holding_completo": "", "holding_coment": "", "abm_teo": "5:56", "abm_real": "4:10", "cocina_teo": "6:16", "cocina_real": "4:40", "apto_teo": "6:41", "apto_real": "5:05", "carg_ini_teo": "7:11", "carg_ini_real": "7:24", "carg_fin_teo": "7:46", "carg_fin_real": "7:44", "obs": "Cargar con el LA390", "delays": {"abm": -106, "cocina": -96, "apto": -96, "carg_ini": 13, "carg_fin": -2}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "5101", "salida": "1094", "matricula": "CC-DIE", "tipo": "A320", "config": "Barset T", "origen": "EPOS", "destino": "AEP", "negocio": "INT", "etd": "8:09", "consolidador": "GABRIEL ROBLES", "holding_teo": "0:19", "holding_limite": "1:19", "holding_completo": "SI", "holding_coment": "", "abm_teo": "5:59", "abm_real": "3:30", "cocina_teo": "6:19", "cocina_real": "4:00", "apto_teo": "6:44", "apto_real": "4:30", "carg_ini_teo": "7:14", "carg_ini_real": "7:29", "carg_fin_teo": "7:49", "carg_fin_real": "7:45", "obs": "AWW // DIE/ SE SOLICITA CAMBIO DE BARSET Y EPOS", "delays": {"abm": -149, "cocina": -139, "apto": -134, "carg_ini": 15, "carg_fin": -4}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "", "salida": "36", "matricula": "CC-DIO", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "CJC", "negocio": "NAC", "etd": "8:10", "consolidador": "GABRIEL ROBLES", "holding_teo": "0:20", "holding_limite": "1:20", "holding_completo": "SI", "holding_coment": "", "abm_teo": "6:00", "abm_real": "4:10", "cocina_teo": "6:20", "cocina_real": "4:40", "apto_teo": "6:45", "apto_real": "5:05", "carg_ini_teo": "7:15", "carg_ini_real": "", "carg_fin_teo": "7:50", "carg_fin_real": "7:53", "obs": "PENDIENTE EPOS", "delays": {"abm": -110, "cocina": -100, "apto": -100, "carg_ini": null, "carg_fin": 3}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "sin_dato", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "353", "salida": "754", "matricula": "CC-BEL", "tipo": "A321", "config": "PASAJERO", "origen": "ANF", "destino": "GRU", "negocio": "INT", "etd": "8:15", "consolidador": "ANDRES MENDEZ", "holding_teo": "0:25", "holding_limite": "1:25", "holding_completo": "SI", "holding_coment": "", "abm_teo": "6:05", "abm_real": "5:10", "cocina_teo": "6:25", "cocina_real": "5:45", "apto_teo": "6:50", "apto_real": "6:05", "carg_ini_teo": "7:20", "carg_ini_real": "7:08", "carg_fin_teo": "7:55", "carg_fin_real": "7:49", "obs": "", "delays": {"abm": -55, "cocina": -40, "apto": -45, "carg_ini": -12, "carg_fin": -6}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "-", "salida": "207", "matricula": "CC-BEP", "tipo": "A321", "config": "ORIGINATOR", "origen": "", "destino": "CCP", "negocio": "NAC", "etd": "8:15", "consolidador": "", "holding_teo": "0:25", "holding_limite": "1:25", "holding_completo": "", "holding_coment": "", "abm_teo": "6:05", "abm_real": "5:25", "cocina_teo": "6:25", "cocina_real": "5:45", "apto_teo": "6:50", "apto_real": "6:17", "carg_ini_teo": "7:20", "carg_ini_real": "7:20", "carg_fin_teo": "7:55", "carg_fin_real": "7:43", "obs": "Cargar con el LA902", "delays": {"abm": -40, "cocina": -40, "apto": -33, "carg_ini": 0, "carg_fin": -12}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "82", "salida": "83", "matricula": "CC-BEC", "tipo": "A321", "config": "CANASTA", "origen": "PUQ", "destino": "PUQ", "negocio": "NAC", "etd": "8:24", "consolidador": "", "holding_teo": "0:34", "holding_limite": "1:34", "holding_completo": "", "holding_coment": "", "abm_teo": "6:14", "abm_real": "4:45", "cocina_teo": "6:34", "cocina_real": "5:25", "apto_teo": "6:59", "apto_real": "5:45", "carg_ini_teo": "7:29", "carg_ini_real": "7:25", "carg_fin_teo": "8:04", "carg_fin_real": "7:55", "obs": "3 tramos", "delays": {"abm": -89, "cocina": -69, "apto": -74, "carg_ini": -4, "carg_fin": -9}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "347", "salida": "33", "matricula": "CC-BED", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "ZCO", "negocio": "NAC", "etd": "8:25", "consolidador": "", "holding_teo": "0:35", "holding_limite": "1:35", "holding_completo": "", "holding_coment": "", "abm_teo": "6:15", "abm_real": "3:50", "cocina_teo": "6:35", "cocina_real": "4:15", "apto_teo": "7:00", "apto_real": "4:45", "carg_ini_teo": "7:30", "carg_ini_real": "8:05", "carg_fin_teo": "8:05", "carg_fin_real": "8:20", "obs": "2 tramos// 7:50 acuñado", "delays": {"abm": -145, "cocina": -140, "apto": -135, "carg_ini": 35, "carg_fin": 15}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "rojo", "carg_fin": "verde"}, "overall": "rojo"}, {"arribo": "501", "salida": "542", "matricula": "CC-BBJ", "tipo": "B787", "config": "PASAJERO", "origen": "MIA", "destino": "EZE", "negocio": "INT", "etd": "8:30", "consolidador": "DEBORA GUZMAN", "holding_teo": "0:15", "holding_limite": "1:15", "holding_completo": "SI", "holding_coment": "", "abm_teo": "5:40", "abm_real": "5:40", "cocina_teo": "6:15", "cocina_real": "6:20", "apto_teo": "6:45", "apto_real": "6:45", "carg_ini_teo": "6:50", "carg_ini_real": "7:16", "carg_fin_teo": "7:31", "carg_fin_real": "8:27", "obs": "3 BULK DE MATERIAL/ en puente 7:10", "delays": {"abm": 0, "cocina": 5, "apto": 0, "carg_ini": 26, "carg_fin": 56}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "amarillo", "carg_fin": "rojo"}, "overall": "rojo"}, {"arribo": "621", "salida": "622", "matricula": "EC-NUI", "tipo": "A330", "config": "PASAJERO", "origen": "MEX", "destino": "MEX", "negocio": "INT", "etd": "8:30", "consolidador": "Jahiro Galaz", "holding_teo": "0:15", "holding_limite": "1:15", "holding_completo": "", "holding_coment": "", "abm_teo": "5:40", "abm_real": "5:40", "cocina_teo": "6:15", "cocina_real": "6:15", "apto_teo": "6:45", "apto_real": "6:40", "carg_ini_teo": "6:50", "carg_ini_real": "6:59", "carg_fin_teo": "7:31", "carg_fin_real": "8:07", "obs": "", "delays": {"abm": 0, "cocina": 0, "apto": -5, "carg_ini": 9, "carg_fin": 36}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "rojo"}, "overall": "rojo"}, {"arribo": "351", "salida": "406", "matricula": "CC-BAR", "tipo": "A320", "config": "PASAJERO", "origen": "ANF", "destino": "MVD", "negocio": "INT", "etd": "8:35", "consolidador": "DEBORA GUZMAN", "holding_teo": "0:45", "holding_limite": "1:45", "holding_completo": "SI", "holding_coment": "", "abm_teo": "6:25", "abm_real": "6:25", "cocina_teo": "6:45", "cocina_real": "6:45", "apto_teo": "7:10", "apto_real": "7:20", "carg_ini_teo": "7:40", "carg_ini_real": "7:30", "carg_fin_teo": "8:15", "carg_fin_real": "8:11", "obs": "", "delays": {"abm": 0, "cocina": 0, "apto": 10, "carg_ini": -10, "carg_fin": -4}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "verde"}, "overall": "verde"}, {"arribo": "533", "salida": "841", "matricula": "CC-BBF", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "IPC", "negocio": "INT", "etd": "8:55", "consolidador": "ANDRES MENDEZ", "holding_teo": "0:40", "holding_limite": "1:40", "holding_completo": "SI", "holding_coment": "", "abm_teo": "6:05", "abm_real": "5:50", "cocina_teo": "6:40", "cocina_real": "6:16", "apto_teo": "7:10", "apto_real": "6:33", "carg_ini_teo": "7:15", "carg_ini_real": "7:50", "carg_fin_teo": "7:56", "carg_fin_real": "8:36", "obs": "215/ 7:41 acuñado", "delays": {"abm": -15, "cocina": -24, "apto": -37, "carg_ini": 35, "carg_fin": 40}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "rojo", "carg_fin": "rojo"}, "overall": "rojo"}, {"arribo": "", "salida": "841", "matricula": "", "tipo": "", "config": "BULCK", "origen": "", "destino": "", "negocio": "", "etd": "8:55", "consolidador": "", "holding_teo": "0:00", "holding_limite": "0:00", "holding_completo": "", "holding_coment": "", "abm_teo": "0:00", "abm_real": "7:00", "cocina_teo": "0:00", "cocina_real": "7:08", "apto_teo": "0:00", "apto_real": "", "carg_ini_teo": "0:00", "carg_ini_real": "", "carg_fin_teo": "0:00", "carg_fin_real": "", "obs": "", "delays": {"abm": 420, "cocina": 428, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "rojo", "cocina": "rojo", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "2431", "salida": "269", "matricula": "CC-BHS", "tipo": "A320", "config": "CANASTA", "origen": "LIM", "destino": "PMC", "negocio": "NAC", "etd": "8:56", "consolidador": "", "holding_teo": "1:06", "holding_limite": "2:06", "holding_completo": "", "holding_coment": "", "abm_teo": "6:46", "abm_real": "3:30", "cocina_teo": "7:06", "cocina_real": "4:00", "apto_teo": "7:31", "apto_real": "4:30", "carg_ini_teo": "8:01", "carg_ini_real": "8:23", "carg_fin_teo": "8:36", "carg_fin_real": "8:37", "obs": "", "delays": {"abm": -196, "cocina": -186, "apto": -181, "carg_ini": 22, "carg_fin": 1}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "amarillo", "carg_fin": "verde"}, "overall": "amarillo"}, {"arribo": "208", "salida": "209", "matricula": "CC-BER", "tipo": "A321", "config": "ORIGINATOR", "origen": "CCP", "destino": "CCP", "negocio": "NAC", "etd": "9:38", "consolidador": "", "holding_teo": "1:48", "holding_limite": "2:48", "holding_completo": "", "holding_coment": "", "abm_teo": "7:28", "abm_real": "4:10", "cocina_teo": "7:48", "cocina_real": "4:40", "apto_teo": "8:13", "apto_real": "5:05", "carg_ini_teo": "8:43", "carg_ini_real": "9:00", "carg_fin_teo": "9:18", "carg_fin_real": "", "obs": "", "delays": {"abm": -198, "cocina": -188, "apto": -188, "carg_ini": 17, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "amarillo", "carg_fin": "sin_dato"}, "overall": "amarillo"}, {"arribo": "60", "salida": "780", "matricula": "CC-BHT", "tipo": "A320", "config": "PASAJERO", "origen": "PMC", "destino": "GIG", "negocio": "INT", "etd": "10:00", "consolidador": "Jahiro Galaz", "holding_teo": "2:10", "holding_limite": "3:10", "holding_completo": "", "holding_coment": "", "abm_teo": "7:50", "abm_real": "6:25", "cocina_teo": "8:10", "cocina_real": "6:45", "apto_teo": "8:35", "apto_real": "7:20", "carg_ini_teo": "9:05", "carg_ini_real": "8:55", "carg_fin_teo": "9:40", "carg_fin_real": "", "obs": "", "delays": {"abm": -85, "cocina": -85, "apto": -75, "carg_ini": -10, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "359", "salida": "492", "matricula": "PR-TYU", "tipo": "A320", "config": "PASAJERO", "origen": "ANF", "destino": "COR", "negocio": "INT", "etd": "10:15", "consolidador": "LUIS ORELLANA", "holding_teo": "2:25", "holding_limite": "3:25", "holding_completo": "SI", "holding_coment": "", "abm_teo": "8:05", "abm_real": "7:00", "cocina_teo": "8:25", "cocina_real": "8:25", "apto_teo": "8:50", "apto_real": "8:40", "carg_ini_teo": "9:20", "carg_ini_real": "", "carg_fin_teo": "9:55", "carg_fin_real": "", "obs": "", "delays": {"abm": -65, "cocina": 0, "apto": -10, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "", "salida": "IB  0118", "matricula": "EC-NMZ", "tipo": "A350", "config": "IBERIA", "origen": "", "destino": "MAD", "negocio": "INT", "etd": "10:40", "consolidador": "Betzabeth Hernández", "holding_teo": "2:25", "holding_limite": "3:25", "holding_completo": "NO", "holding_coment": "", "abm_teo": "7:50", "abm_real": "7:50", "cocina_teo": "8:25", "cocina_real": "8:53", "apto_teo": "8:50", "apto_real": "", "carg_ini_teo": "9:00", "carg_ini_real": "", "carg_fin_teo": "9:40", "carg_fin_real": "", "obs": "PENDIENTES", "delays": {"abm": 0, "cocina": 28, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "amarillo", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "843", "matricula": "CC-BBI", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "IPC", "negocio": "INT", "etd": "10:50", "consolidador": "LUIS ORELLANA", "holding_teo": "2:35", "holding_limite": "3:35", "holding_completo": "NO", "holding_coment": "ifbl gnerado", "abm_teo": "8:00", "abm_real": "7:50", "cocina_teo": "8:35", "cocina_real": "8:30", "apto_teo": "9:05", "apto_real": "8:49", "carg_ini_teo": "9:10", "carg_ini_real": "9:07", "carg_fin_teo": "9:51", "carg_fin_real": "", "obs": "8:59 acuñado", "delays": {"abm": -10, "cocina": -5, "apto": -16, "carg_ini": -3, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "verde", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "843", "matricula": "", "tipo": "", "config": "BULCK", "origen": "", "destino": "", "negocio": "", "etd": "10:50", "consolidador": "", "holding_teo": "", "holding_limite": "", "holding_completo": "", "holding_coment": "", "abm_teo": "B MUÑOZ", "abm_real": "", "cocina_teo": "7:00", "cocina_real": "0", "apto_teo": "", "apto_real": "", "carg_ini_teo": "", "carg_ini_real": "", "carg_fin_teo": "", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "121", "salida": "748", "matricula": "PR-TYQ", "tipo": "A320", "config": "PASAJERO", "origen": "ANF", "destino": "GRU", "negocio": "INT", "etd": "10:55", "consolidador": "Fernando Gonzalez", "holding_teo": "3:05", "holding_limite": "4:05", "holding_completo": "SI", "holding_coment": "", "abm_teo": "8:45", "abm_real": "7:00", "cocina_teo": "9:05", "cocina_real": "8:25", "apto_teo": "9:30", "apto_real": "8:40", "carg_ini_teo": "10:00", "carg_ini_real": "", "carg_fin_teo": "10:35", "carg_fin_real": "", "obs": "", "delays": {"abm": -105, "cocina": -40, "apto": -50, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "", "salida": "610", "matricula": "CC-AWS", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "LSC", "negocio": "NAC", "etd": "11:31", "consolidador": "GABRIEL ROBLES", "holding_teo": "3:41", "holding_limite": "4:41", "holding_completo": "SI", "holding_coment": "", "abm_teo": "9:21", "abm_real": "7:50", "cocina_teo": "9:41", "cocina_real": "", "apto_teo": "10:06", "apto_real": "", "carg_ini_teo": "10:36", "carg_ini_real": "", "carg_fin_teo": "11:11", "carg_fin_real": "", "obs": "", "delays": {"abm": -91, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "127", "salida": "750", "matricula": "CC-BHM", "tipo": "A320", "config": "PASAJERO", "origen": "ANF", "destino": "GRU", "negocio": "INT", "etd": "11:45", "consolidador": "Jeriel Muñoz", "holding_teo": "3:55", "holding_limite": "4:55", "holding_completo": "", "holding_coment": "", "abm_teo": "9:35", "abm_real": "", "cocina_teo": "9:55", "cocina_real": "", "apto_teo": "10:20", "apto_real": "", "carg_ini_teo": "10:50", "carg_ini_real": "", "carg_fin_teo": "11:25", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "145", "salida": "455", "matricula": "PR-TYI", "tipo": "A320", "config": "PASAJERO", "origen": "CJC", "destino": "AEP", "negocio": "", "etd": "11:45", "consolidador": "Fernando Gonzalez", "holding_teo": "3:55", "holding_limite": "4:55", "holding_completo": "NO", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "9:35", "cocina_teo": "", "cocina_real": "9:55", "apto_teo": "", "apto_real": "10:20", "carg_ini_teo": "", "carg_ini_real": "10:50", "carg_fin_teo": "", "carg_fin_real": "11:25", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "355", "salida": "152", "matricula": "CC-BEM", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "CJC", "negocio": "", "etd": "11:55", "consolidador": "", "holding_teo": "4:05", "holding_limite": "5:05", "holding_completo": "", "holding_coment": "", "abm_teo": "6:25", "abm_real": "1", "cocina_teo": "6:45", "cocina_real": "1", "apto_teo": "7:20", "apto_real": "1", "carg_ini_teo": "", "carg_ini_real": "", "carg_fin_teo": "", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "163", "salida": "285", "matricula": "CC-BHJ", "tipo": "A320", "config": "ORIGINATOR", "origen": "IQQ", "destino": "PMC", "negocio": "NAC", "etd": "12:02", "consolidador": "", "holding_teo": "4:12", "holding_limite": "5:12", "holding_completo": "", "holding_coment": "", "abm_teo": "9:52", "abm_real": "", "cocina_teo": "10:12", "cocina_real": "", "apto_teo": "10:37", "apto_real": "", "carg_ini_teo": "11:07", "carg_ini_real": "", "carg_fin_teo": "11:42", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "757", "salida": "770", "matricula": "PR-TYP", "tipo": "A320", "config": "PASAJERO", "origen": "GRU", "destino": "GIG", "negocio": "", "etd": "12:16", "consolidador": "Fernando Gonzalez", "holding_teo": "4:26", "holding_limite": "5:26", "holding_completo": "NO", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "10:06", "cocina_teo": "", "cocina_real": "10:26", "apto_teo": "", "apto_real": "10:51", "carg_ini_teo": "", "carg_ini_real": "11:21", "carg_fin_teo": "", "carg_fin_real": "11:56", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "865", "salida": "640", "matricula": "CC-BAY", "tipo": "A320", "config": "PASAJERO", "origen": "VVI", "destino": "LIM", "negocio": "", "etd": "12:32", "consolidador": "Betzabeth Hernández", "holding_teo": "4:42", "holding_limite": "5:42", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "10:22", "cocina_teo": "", "cocina_real": "10:42", "apto_teo": "", "apto_real": "11:07", "carg_ini_teo": "", "carg_ini_real": "11:37", "carg_fin_teo": "", "carg_fin_real": "12:12", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "673", "salida": "760", "matricula": "CC-COL", "tipo": "A320", "config": "PASAJERO", "origen": "CNF", "destino": "GRU", "negocio": "", "etd": "12:35", "consolidador": "Jeriel Muñoz", "holding_teo": "4:45", "holding_limite": "5:45", "holding_completo": "", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "10:25", "cocina_teo": "", "cocina_real": "10:45", "apto_teo": "", "apto_real": "11:10", "carg_ini_teo": "", "carg_ini_real": "11:40", "carg_fin_teo": "", "carg_fin_real": "12:15", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "4", "salida": "17", "matricula": "CC-BEO", "tipo": "A321", "config": "ORIGINATOR", "origen": "CCP", "destino": "CCP", "negocio": "NAC", "etd": "12:41", "consolidador": "", "holding_teo": "4:51", "holding_limite": "5:51", "holding_completo": "", "holding_coment": "", "abm_teo": "10:31", "abm_real": "6:25", "cocina_teo": "10:51", "cocina_real": "6:45", "apto_teo": "11:16", "apto_real": "7:20", "carg_ini_teo": "11:46", "carg_ini_real": "", "carg_fin_teo": "12:21", "carg_fin_real": "", "obs": "Recuperar gabinete en bodega", "delays": {"abm": -246, "cocina": -246, "apto": -236, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "2445", "salida": "132", "matricula": "CC-BAH", "tipo": "A320", "config": "ORIGINATOR", "origen": "AEP", "destino": "ANF", "negocio": "", "etd": "12:47", "consolidador": "", "holding_teo": "4:57", "holding_limite": "5:57", "holding_completo": "", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "10:37", "cocina_teo": "", "cocina_real": "10:57", "apto_teo": "", "apto_real": "11:22", "carg_ini_teo": "", "carg_ini_real": "11:52", "carg_fin_teo": "", "carg_fin_real": "12:27", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "149", "salida": "311", "matricula": "CC-BEJ", "tipo": "A321", "config": "CANASTA", "origen": "CJC", "destino": "PMC", "negocio": "NAC", "etd": "12:49", "consolidador": "", "holding_teo": "4:59", "holding_limite": "5:59", "holding_completo": "", "holding_coment": "", "abm_teo": "10:39", "abm_real": "", "cocina_teo": "10:59", "cocina_real": "", "apto_teo": "11:24", "apto_real": "", "carg_ini_teo": "11:54", "carg_ini_real": "", "carg_fin_teo": "12:29", "carg_fin_real": "", "obs": "3 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "80", "salida": "27", "matricula": "CC-BEG", "tipo": "A321", "config": "ORIGINATOR", "origen": "PUQ", "destino": "ZCO", "negocio": "NAC", "etd": "13:08", "consolidador": "", "holding_teo": "5:18", "holding_limite": "6:18", "holding_completo": "", "holding_coment": "", "abm_teo": "10:58", "abm_real": "", "cocina_teo": "11:18", "cocina_real": "", "apto_teo": "11:43", "apto_real": "", "carg_ini_teo": "12:13", "carg_ini_real": "", "carg_fin_teo": "12:48", "carg_fin_real": "", "obs": "Cargar con el LA340", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "5104", "salida": "774", "matricula": "CC-AWT", "tipo": "A320", "config": "BARSET EXTRA", "origen": "EPOS", "destino": "GRU", "negocio": "INT", "etd": "13:10", "consolidador": "", "holding_teo": "5:20", "holding_limite": "6:20", "holding_completo": "", "holding_coment": "", "abm_teo": "11:00", "abm_real": "", "cocina_teo": "11:20", "cocina_real": "", "apto_teo": "11:45", "apto_real": "", "carg_ini_teo": "12:15", "carg_ini_real": "", "carg_fin_teo": "12:50", "carg_fin_real": "", "obs": "BARSET EXTRA Y EPOS", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "1150", "salida": "783", "matricula": "CC-BAM", "tipo": "A320", "config": "PASAJERO", "origen": "BBA", "destino": "CWB", "negocio": "INT", "etd": "13:25", "consolidador": "Betzabeth Hernández", "holding_teo": "5:35", "holding_limite": "6:35", "holding_completo": "", "holding_coment": "", "abm_teo": "11:15", "abm_real": "", "cocina_teo": "11:35", "cocina_real": "", "apto_teo": "12:00", "apto_real": "", "carg_ini_teo": "12:30", "carg_ini_real": "", "carg_fin_teo": "13:05", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "789", "salida": "520", "matricula": "PR-TYR", "tipo": "A320", "config": "PASAJERO", "origen": "BSB", "destino": "LIM", "negocio": "INT", "etd": "13:28", "consolidador": "Jeriel Muñoz", "holding_teo": "5:38", "holding_limite": "6:38", "holding_completo": "", "holding_coment": "", "abm_teo": "11:18", "abm_real": "", "cocina_teo": "11:38", "cocina_real": "", "apto_teo": "12:03", "apto_real": "", "carg_ini_teo": "12:33", "carg_ini_real": "", "carg_fin_teo": "13:08", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "212", "salida": "516", "matricula": "CC-BER", "tipo": "A321", "config": "PASAJERO", "origen": "CCP", "destino": "FLN", "negocio": "INT", "etd": "13:38", "consolidador": "Jeriel Muñoz", "holding_teo": "5:48", "holding_limite": "6:48", "holding_completo": "", "holding_coment": "", "abm_teo": "11:28", "abm_real": "", "cocina_teo": "11:48", "cocina_real": "", "apto_teo": "12:13", "apto_real": "", "carg_ini_teo": "12:43", "carg_ini_real": "", "carg_fin_teo": "13:18", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "105", "salida": "168", "matricula": "CC-BEE", "tipo": "A321", "config": "ORIGINATOR", "origen": "LSC", "destino": "IQQ", "negocio": "NAC", "etd": "13:45", "consolidador": "", "holding_teo": "5:55", "holding_limite": "6:55", "holding_completo": "", "holding_coment": "", "abm_teo": "11:35", "abm_real": "6:25", "cocina_teo": "11:55", "cocina_real": "6:45", "apto_teo": "12:20", "apto_real": "7:20", "carg_ini_teo": "12:50", "carg_ini_real": "", "carg_fin_teo": "13:25", "carg_fin_real": "", "obs": "Cargar con el LA384", "delays": {"abm": -310, "cocina": -310, "apto": -300, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "verde", "cocina": "verde", "apto": "verde", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "verde"}, {"arribo": "74", "salida": "740", "matricula": "CC-BHK", "tipo": "A320", "config": "PASAJERO", "origen": "BBA", "destino": "POA", "negocio": "INT", "etd": "13:53", "consolidador": "Fernando Gonzalez", "holding_teo": "6:03", "holding_limite": "7:03", "holding_completo": "", "holding_coment": "", "abm_teo": "11:43", "abm_real": "", "cocina_teo": "12:03", "cocina_real": "", "apto_teo": "12:28", "apto_real": "", "carg_ini_teo": "12:58", "carg_ini_real": "", "carg_fin_teo": "13:33", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "1324", "salida": "1325", "matricula": "PR-MBA", "tipo": "A320", "config": "PASAJERO", "origen": "ASU", "destino": "ASU", "negocio": "INT", "etd": "14:05", "consolidador": "Betzabeth Hernández", "holding_teo": "6:15", "holding_limite": "7:15", "holding_completo": "", "holding_coment": "", "abm_teo": "11:55", "abm_real": "", "cocina_teo": "12:15", "cocina_real": "", "apto_teo": "12:40", "apto_real": "", "carg_ini_teo": "13:10", "carg_ini_real": "", "carg_fin_teo": "13:45", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "772", "matricula": "CC-DID", "tipo": "A320", "config": "Vantrip Fresh", "origen": "EPOS", "destino": "GRU", "negocio": "INT", "etd": "14:30", "consolidador": "", "holding_teo": "6:40", "holding_limite": "7:40", "holding_completo": "", "holding_coment": "", "abm_teo": "12:20", "abm_real": "", "cocina_teo": "12:40", "cocina_real": "", "apto_teo": "13:05", "apto_real": "", "carg_ini_teo": "13:35", "carg_ini_real": "", "carg_fin_teo": "14:10", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "2366", "salida": "2367", "matricula": "CC-BJF", "tipo": "A320", "config": "PASAJERO", "origen": "CUZ", "destino": "CUZ", "negocio": "INT", "etd": "14:40", "consolidador": "Fernando Gonzalez", "holding_teo": "6:50", "holding_limite": "7:50", "holding_completo": "", "holding_coment": "", "abm_teo": "12:30", "abm_real": "", "cocina_teo": "12:50", "cocina_real": "", "apto_teo": "13:15", "apto_real": "", "carg_ini_teo": "13:45", "carg_ini_real": "", "carg_fin_teo": "14:20", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "491", "salida": "646", "matricula": "PR-TYU", "tipo": "A320", "config": "PASAJERO", "origen": "COR", "destino": "LIM", "negocio": "INT", "etd": "14:50", "consolidador": "Betzabeth Hernández", "holding_teo": "7:00", "holding_limite": "8:00", "holding_completo": "", "holding_coment": "", "abm_teo": "12:40", "abm_real": "", "cocina_teo": "13:00", "cocina_real": "", "apto_teo": "13:25", "apto_real": "", "carg_ini_teo": "13:55", "carg_ini_real": "", "carg_fin_teo": "14:30", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "34", "salida": "388", "matricula": "CC-BED", "tipo": "A321", "config": "ORIGINATOR", "origen": "ZCO", "destino": "CJC", "negocio": "", "etd": "15:00", "consolidador": "", "holding_teo": "7:10", "holding_limite": "8:10", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "12:50", "cocina_teo": "", "cocina_real": "13:10", "apto_teo": "", "apto_real": "13:35", "carg_ini_teo": "", "carg_ini_real": "14:05", "carg_fin_teo": "", "carg_fin_real": "14:40", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "115", "salida": "134", "matricula": "CC-BEK", "tipo": "A321", "config": "ORIGINATOR", "origen": "CPO", "destino": "ANF", "negocio": "", "etd": "15:03", "consolidador": "", "holding_teo": "7:13", "holding_limite": "8:13", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "12:53", "cocina_teo": "", "cocina_real": "13:13", "apto_teo": "", "apto_real": "13:38", "carg_ini_teo": "", "carg_ini_real": "14:08", "carg_fin_teo": "", "carg_fin_real": "14:43", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "719", "salida": "410", "matricula": "CC-BHN", "tipo": "A320", "config": "PASAJERO", "origen": "FLN", "destino": "MVD", "negocio": "INT", "etd": "15:06", "consolidador": "Betzabeth Hernández", "holding_teo": "7:16", "holding_limite": "8:16", "holding_completo": "", "holding_coment": "", "abm_teo": "12:56", "abm_real": "", "cocina_teo": "13:16", "cocina_real": "", "apto_teo": "13:41", "apto_real": "", "carg_ini_teo": "14:11", "carg_ini_real": "", "carg_fin_teo": "14:46", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "1265", "salida": "1144", "matricula": "CC-BEH", "tipo": "A321", "config": "PASAJERO", "origen": "ANF", "destino": "GRU", "negocio": "", "etd": "15:10", "consolidador": "", "holding_teo": "", "holding_limite": "", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "13:00", "cocina_teo": "", "cocina_real": "13:20", "apto_teo": "", "apto_real": "13:45", "carg_ini_teo": "", "carg_ini_real": "14:15", "carg_fin_teo": "", "carg_fin_real": "14:50", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "714", "matricula": "CC-BGL", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "GRU", "negocio": "INT", "etd": "15:10", "consolidador": "Betzabeth Hernández", "holding_teo": "6:55", "holding_limite": "7:55", "holding_completo": "", "holding_coment": "", "abm_teo": "12:20", "abm_real": "CNL", "cocina_teo": "12:55", "cocina_real": "CNL", "apto_teo": "13:20", "apto_real": "CNL", "carg_ini_teo": "13:30", "carg_ini_real": "CNL", "carg_fin_teo": "14:11", "carg_fin_real": "CNL", "obs": "CNL", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "407", "salida": "477", "matricula": "CC-BAR", "tipo": "A320", "config": "PASAJERO", "origen": "MVD", "destino": "EZE", "negocio": "INT", "etd": "15:20", "consolidador": "Jeriel Muñoz", "holding_teo": "7:30", "holding_limite": "8:30", "holding_completo": "", "holding_coment": "", "abm_teo": "13:10", "abm_real": "", "cocina_teo": "13:30", "cocina_real": "", "apto_teo": "13:55", "apto_real": "", "carg_ini_teo": "14:25", "carg_ini_real": "", "carg_fin_teo": "15:00", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "AV0116", "matricula": "AV0116", "tipo": "A320", "config": "AVIANCA", "origen": "", "destino": "BOG", "negocio": "INT", "etd": "15:20", "consolidador": "", "holding_teo": "7:30", "holding_limite": "8:30", "holding_completo": "NO", "holding_coment": "no se encuentra en  holding", "abm_teo": "13:10", "abm_real": "", "cocina_teo": "13:30", "cocina_real": "", "apto_teo": "13:55", "apto_real": "", "carg_ini_teo": "14:25", "carg_ini_real": "", "carg_fin_teo": "15:00", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "990", "matricula": "CC-DII", "tipo": "A320", "config": "BARSET EXTRA", "origen": "EPOS", "destino": "", "negocio": "", "etd": "15:30", "consolidador": "", "holding_teo": "", "holding_limite": "", "holding_completo": "", "holding_coment": "", "abm_teo": "P AZUA", "abm_real": "", "cocina_teo": "", "cocina_real": "", "apto_teo": "", "apto_real": "", "carg_ini_teo": "", "carg_ini_real": "", "carg_fin_teo": "", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "800", "matricula": "CC-DIO", "tipo": "A320", "config": "Vantrip Fresh", "origen": "", "destino": "CLO", "negocio": "", "etd": "15:30", "consolidador": "", "holding_teo": "7:40", "holding_limite": "8:40", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "13:20", "cocina_teo": "", "cocina_real": "13:40", "apto_teo": "", "apto_real": "14:05", "carg_ini_teo": "", "carg_ini_real": "14:35", "carg_fin_teo": "", "carg_fin_real": "15:10", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "16", "salida": "374", "matricula": "PR-TYK", "tipo": "A320", "config": "ORIGINATOR", "origen": "CCP", "destino": "CJC", "negocio": "", "etd": "15:31", "consolidador": "", "holding_teo": "7:41", "holding_limite": "8:41", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "13:21", "cocina_teo": "", "cocina_real": "13:41", "apto_teo": "", "apto_real": "14:06", "carg_ini_teo": "", "carg_ini_real": "14:36", "carg_fin_teo": "", "carg_fin_real": "15:11", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "36", "salida": "102", "matricula": "CC-BEB", "tipo": "A321", "config": "ORIGINATOR", "origen": "ZCO", "destino": "LSC", "negocio": "", "etd": "15:55", "consolidador": "", "holding_teo": "8:05", "holding_limite": "9:05", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "13:45", "cocina_teo": "", "cocina_real": "14:05", "apto_teo": "", "apto_real": "14:30", "carg_ini_teo": "", "carg_ini_real": "15:00", "carg_fin_teo": "", "carg_fin_real": "15:35", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "68", "salida": "25", "matricula": "CC-BHU", "tipo": "A320", "config": "ORIGINATOR", "origen": "MHC", "destino": "ZCO", "negocio": "NAC", "etd": "16:00", "consolidador": "", "holding_teo": "8:10", "holding_limite": "9:10", "holding_completo": "", "holding_coment": "", "abm_teo": "13:50", "abm_real": "", "cocina_teo": "14:10", "cocina_real": "", "apto_teo": "14:35", "apto_real": "", "carg_ini_teo": "15:05", "carg_ini_real": "", "carg_fin_teo": "15:40", "carg_fin_real": "", "obs": "Cargar con el LA342", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "708", "matricula": "CC-BGA", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "MAD", "negocio": "INT", "etd": "16:05", "consolidador": "Fernando Gonzalez", "holding_teo": "7:50", "holding_limite": "8:50", "holding_completo": "", "holding_coment": "", "abm_teo": "13:15", "abm_real": "", "cocina_teo": "13:50", "cocina_real": "", "apto_teo": "14:15", "apto_real": "", "carg_ini_teo": "14:25", "carg_ini_real": "", "carg_fin_teo": "15:06", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "64", "salida": "772", "matricula": "CC-BAK", "tipo": "A320", "config": "PASAJERO", "origen": "PMC", "destino": "GIG", "negocio": "INT", "etd": "16:15", "consolidador": "Betzabeth Hernández", "holding_teo": "8:25", "holding_limite": "9:25", "holding_completo": "", "holding_coment": "", "abm_teo": "14:05", "abm_real": "", "cocina_teo": "14:25", "cocina_real": "", "apto_teo": "14:50", "apto_real": "", "carg_ini_teo": "15:20", "carg_ini_real": "", "carg_fin_teo": "15:55", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "8104", "salida": "8105", "matricula": "PS-LBM", "tipo": "A321", "config": "PASAJERO", "origen": "GRU", "destino": "GRU", "negocio": "INT", "etd": "16:25", "consolidador": "Jeriel Muñoz", "holding_teo": "8:35", "holding_limite": "9:35", "holding_completo": "", "holding_coment": "", "abm_teo": "14:15", "abm_real": "", "cocina_teo": "14:35", "cocina_real": "", "apto_teo": "15:00", "apto_real": "", "carg_ini_teo": "15:30", "carg_ini_real": "", "carg_fin_teo": "16:05", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "-", "salida": "710", "matricula": "CC-BBH", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "BOG", "negocio": "INT", "etd": "16:30", "consolidador": "Jeriel Muñoz", "holding_teo": "8:15", "holding_limite": "9:15", "holding_completo": "", "holding_coment": "", "abm_teo": "13:40", "abm_real": "", "cocina_teo": "14:15", "cocina_real": "", "apto_teo": "14:45", "apto_real": "", "carg_ini_teo": "14:50", "carg_ini_real": "", "carg_fin_teo": "15:31", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "151", "salida": "170", "matricula": "CC-BEI", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "IQQ", "negocio": "NAC", "etd": "16:38", "consolidador": "", "holding_teo": "8:48", "holding_limite": "9:48", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "14:28", "abm_real": "", "cocina_teo": "14:48", "cocina_real": "", "apto_teo": "15:13", "apto_real": "", "carg_ini_teo": "15:43", "carg_ini_real": "", "carg_fin_teo": "16:18", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "48", "salida": "201", "matricula": "CC-BEN", "tipo": "A321", "config": "ORIGINATOR", "origen": "ZOS", "destino": "CCP", "negocio": "NAC", "etd": "16:39", "consolidador": "", "holding_teo": "8:49", "holding_limite": "9:49", "holding_completo": "", "holding_coment": "", "abm_teo": "14:29", "abm_real": "", "cocina_teo": "14:49", "cocina_real": "", "apto_teo": "15:14", "apto_real": "", "carg_ini_teo": "15:44", "carg_ini_real": "", "carg_fin_teo": "16:19", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "361", "salida": "425", "matricula": "CC-COK", "tipo": "A320", "config": "PASAJERO", "origen": "ANF", "destino": "AEP", "negocio": "INT", "etd": "16:42", "consolidador": "Jeriel Muñoz", "holding_teo": "8:52", "holding_limite": "9:52", "holding_completo": "", "holding_coment": "", "abm_teo": "14:32", "abm_real": "", "cocina_teo": "14:52", "cocina_real": "", "apto_teo": "15:17", "apto_real": "", "carg_ini_teo": "15:47", "carg_ini_real": "", "carg_fin_teo": "16:22", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "317", "salida": "376", "matricula": "CC-BAE", "tipo": "A320", "config": "ORIGINATOR", "origen": "LSC", "destino": "CJC", "negocio": "NAC", "etd": "16:48", "consolidador": "", "holding_teo": "8:58", "holding_limite": "9:58", "holding_completo": "", "holding_coment": "", "abm_teo": "14:38", "abm_real": "", "cocina_teo": "14:58", "cocina_real": "", "apto_teo": "15:23", "apto_real": "", "carg_ini_teo": "15:53", "carg_ini_real": "", "carg_fin_teo": "16:28", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "2696", "matricula": "CC-BBA", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "LIM", "negocio": "INT", "etd": "16:50", "consolidador": "Ricardo Cáceres", "holding_teo": "8:35", "holding_limite": "9:35", "holding_completo": "", "holding_coment": "", "abm_teo": "14:00", "abm_real": "", "cocina_teo": "14:35", "cocina_real": "", "apto_teo": "15:05", "apto_real": "", "carg_ini_teo": "15:10", "carg_ini_real": "", "carg_fin_teo": "15:51", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "131", "salida": "9", "matricula": "CC-BEF", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "CCP", "negocio": "NAC", "etd": "16:56", "consolidador": "", "holding_teo": "9:06", "holding_limite": "10:06", "holding_completo": "", "holding_coment": "", "abm_teo": "14:46", "abm_real": "", "cocina_teo": "15:06", "cocina_real": "", "apto_teo": "15:31", "apto_real": "", "carg_ini_teo": "16:01", "carg_ini_real": "", "carg_fin_teo": "16:36", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "153", "salida": "118", "matricula": "CC-BAZ", "tipo": "A320", "config": "ORIGINATOR", "origen": "CJC", "destino": "CPO", "negocio": "NAC", "etd": "16:57", "consolidador": "", "holding_teo": "9:07", "holding_limite": "10:07", "holding_completo": "", "holding_coment": "", "abm_teo": "14:47", "abm_real": "", "cocina_teo": "15:07", "cocina_real": "", "apto_teo": "15:32", "apto_real": "", "carg_ini_teo": "16:02", "carg_ini_real": "", "carg_fin_teo": "16:37", "carg_fin_real": "", "obs": "Cargar con el LA344", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "641", "salida": "436", "matricula": "CC-BHL", "tipo": "A320", "config": "PASAJERO", "origen": "LIM", "destino": "MDZ", "negocio": "INT", "etd": "16:58", "consolidador": "Betzabeth Hernández", "holding_teo": "9:08", "holding_limite": "10:08", "holding_completo": "", "holding_coment": "", "abm_teo": "14:48", "abm_real": "", "cocina_teo": "15:08", "cocina_real": "", "apto_teo": "15:33", "apto_real": "", "carg_ini_teo": "16:03", "carg_ini_real": "", "carg_fin_teo": "16:38", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "1851", "salida": "156", "matricula": "CC-BEA", "tipo": "A321", "config": "ORIGINATOR", "origen": "ANF", "destino": "CJC", "negocio": "NAC", "etd": "17:04", "consolidador": "", "holding_teo": "9:14", "holding_limite": "10:14", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "14:54", "abm_real": "", "cocina_teo": "15:14", "cocina_real": "", "apto_teo": "15:39", "apto_real": "", "carg_ini_teo": "16:09", "carg_ini_real": "", "carg_fin_teo": "16:44", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "339", "salida": "235", "matricula": "CC-COO", "tipo": "A320", "config": "ORIGINATOR", "origen": "CPO", "destino": "ZCO", "negocio": "NAC", "etd": "17:08", "consolidador": "", "holding_teo": "9:18", "holding_limite": "10:18", "holding_completo": "", "holding_coment": "", "abm_teo": "14:58", "abm_real": "", "cocina_teo": "15:18", "cocina_real": "", "apto_teo": "15:43", "apto_real": "", "carg_ini_teo": "16:13", "carg_ini_real": "", "carg_fin_teo": "16:48", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "387", "salida": "223", "matricula": "PR-TYM", "tipo": "A320", "config": "ORIGINATOR", "origen": "CJC", "destino": "CCP", "negocio": "NAC", "etd": "17:43", "consolidador": "", "holding_teo": "9:53", "holding_limite": "10:53", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "15:33", "abm_real": "", "cocina_teo": "15:53", "cocina_real": "", "apto_teo": "16:18", "apto_real": "", "carg_ini_teo": "16:48", "carg_ini_real": "", "carg_fin_teo": "17:23", "carg_fin_real": "", "obs": "Cargar con el LA392", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "1110", "matricula": "CC-DIZ", "tipo": "A320", "config": "Vantrip Fresh", "origen": "", "destino": "IQQ", "negocio": "", "etd": "17:45", "consolidador": "", "holding_teo": "9:55", "holding_limite": "10:55", "holding_completo": "", "holding_coment": "", "abm_teo": "", "abm_real": "15:35", "cocina_teo": "", "cocina_real": "15:55", "apto_teo": "", "apto_real": "16:20", "carg_ini_teo": "", "carg_ini_real": "16:50", "carg_fin_teo": "", "carg_fin_real": "17:25", "obs": "NAC", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "454", "salida": "506", "matricula": "PR-TYI", "tipo": "A320", "config": "PASAJERO", "origen": "AEP", "destino": "FLN", "negocio": "INT", "etd": "17:55", "consolidador": "Manuel Jimenez", "holding_teo": "10:05", "holding_limite": "11:05", "holding_completo": "", "holding_coment": "", "abm_teo": "15:45", "abm_real": "", "cocina_teo": "16:05", "cocina_real": "", "apto_teo": "16:30", "apto_real": "", "carg_ini_teo": "17:00", "carg_ini_real": "", "carg_fin_teo": "17:35", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "544", "matricula": "CC-BBD", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "EZE", "negocio": "INT", "etd": "18:00", "consolidador": "Fernando Gonzalez", "holding_teo": "9:45", "holding_limite": "10:45", "holding_completo": "", "holding_coment": "", "abm_teo": "15:10", "abm_real": "", "cocina_teo": "15:45", "cocina_real": "", "apto_teo": "16:15", "apto_real": "", "carg_ini_teo": "16:20", "carg_ini_real": "", "carg_fin_teo": "17:01", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "167", "salida": "164", "matricula": "CC-BEQ", "tipo": "A321", "config": "ORIGINATOR", "origen": "IQQ", "destino": "IQQ", "negocio": "NAC", "etd": "18:01", "consolidador": "", "holding_teo": "10:11", "holding_limite": "11:11", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "15:51", "abm_real": "", "cocina_teo": "16:11", "cocina_real": "", "apto_teo": "16:36", "apto_real": "", "carg_ini_teo": "17:06", "carg_ini_real": "", "carg_fin_teo": "17:41", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "310", "salida": "1858", "matricula": "CC-BEC", "tipo": "A321", "config": "ORIGINATOR", "origen": "PMC", "destino": "CJC", "negocio": "NAC", "etd": "18:10", "consolidador": "", "holding_teo": "10:20", "holding_limite": "11:20", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "16:00", "abm_real": "", "cocina_teo": "16:20", "cocina_real": "", "apto_teo": "16:45", "apto_real": "", "carg_ini_teo": "17:15", "carg_ini_real": "", "carg_fin_teo": "17:50", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "731", "matricula": "CC-DIL", "tipo": "A320", "config": "Vantrip Fresh", "origen": "", "destino": "AEP", "negocio": "17:52", "etd": "18:12", "consolidador": "", "holding_teo": "10:22", "holding_limite": "11:22", "holding_completo": "", "holding_coment": "", "abm_teo": "D LERZUNDI", "abm_real": "C CORDOVA", "cocina_teo": "16:02", "cocina_real": "", "apto_teo": "16:22", "apto_real": "", "carg_ini_teo": "16:47", "carg_ini_real": "", "carg_fin_teo": "17:17", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "903", "salida": "29", "matricula": "CC-BEP", "tipo": "A321", "config": "ORIGINATOR", "origen": "IQQ", "destino": "ZCO", "negocio": "NAC", "etd": "18:18", "consolidador": "", "holding_teo": "10:28", "holding_limite": "11:28", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "16:08", "abm_real": "", "cocina_teo": "16:28", "cocina_real": "", "apto_teo": "16:53", "apto_real": "", "carg_ini_teo": "17:23", "carg_ini_real": "", "carg_fin_teo": "17:58", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "651", "salida": "370", "matricula": "PR-TYV", "tipo": "A320", "config": "ORIGINATOR", "origen": "LIM", "destino": "CJC", "negocio": "NAC", "etd": "18:38", "consolidador": "", "holding_teo": "10:48", "holding_limite": "11:48", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "16:28", "abm_real": "", "cocina_teo": "16:48", "cocina_real": "", "apto_teo": "17:13", "apto_real": "", "carg_ini_teo": "17:43", "carg_ini_real": "", "carg_fin_teo": "18:18", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "775", "salida": "2430", "matricula": "CC-CQM", "tipo": "A320", "config": "PASAJERO", "origen": "GIG", "destino": "LIM", "negocio": "", "etd": "18:45", "consolidador": "", "holding_teo": "10:55", "holding_limite": "11:55", "holding_completo": "", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "16:35", "cocina_teo": "", "cocina_real": "16:55", "apto_teo": "", "apto_real": "17:20", "carg_ini_teo": "", "carg_ini_real": "17:50", "carg_fin_teo": "", "carg_fin_real": "18:25", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "606", "salida": "607", "matricula": "PT-XPC", "tipo": "A321", "config": "PASAJERO", "origen": "GRU", "destino": "GRU", "negocio": "INT", "etd": "19:00", "consolidador": "Fernando Gonzalez", "holding_teo": "11:10", "holding_limite": "12:10", "holding_completo": "", "holding_coment": "", "abm_teo": "16:50", "abm_real": "", "cocina_teo": "17:10", "cocina_real": "", "apto_teo": "17:35", "apto_real": "", "carg_ini_teo": "18:05", "carg_ini_real": "", "carg_fin_teo": "18:40", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "706", "matricula": "CC-BMD", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "MAD", "negocio": "INT", "etd": "19:00", "consolidador": "Jeriel Muñoz", "holding_teo": "10:45", "holding_limite": "11:45", "holding_completo": "", "holding_coment": "", "abm_teo": "16:10", "abm_real": "", "cocina_teo": "16:45", "cocina_real": "", "apto_teo": "17:10", "apto_real": "", "carg_ini_teo": "17:20", "carg_ini_real": "", "carg_fin_teo": "18:01", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "755", "salida": "104", "matricula": "CC-BEL", "tipo": "A321", "config": "ORIGINATOR", "origen": "GRU", "destino": "LSC", "negocio": "NAC", "etd": "19:32", "consolidador": "", "holding_teo": "11:42", "holding_limite": "12:42", "holding_completo": "", "holding_coment": "", "abm_teo": "17:22", "abm_real": "", "cocina_teo": "17:42", "cocina_real": "", "apto_teo": "18:07", "apto_real": "", "carg_ini_teo": "18:37", "carg_ini_real": "", "carg_fin_teo": "19:12", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "2466", "salida": "2467", "matricula": "CC-BHA", "tipo": "A320", "config": "PASAJERO", "origen": "CUZ", "destino": "CUZ", "negocio": "INT", "etd": "19:45", "consolidador": "Fernando Gonzalez", "holding_teo": "11:55", "holding_limite": "12:55", "holding_completo": "", "holding_coment": "", "abm_teo": "17:35", "abm_real": "", "cocina_teo": "17:55", "cocina_real": "", "apto_teo": "18:20", "apto_real": "", "carg_ini_teo": "18:50", "carg_ini_real": "", "carg_fin_teo": "19:25", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "268", "salida": "2438", "matricula": "CC-BHS", "tipo": "A320", "config": "PASAJERO", "origen": "PMC", "destino": "LIM", "negocio": "INT", "etd": "19:55", "consolidador": "Jeriel Muñoz", "holding_teo": "12:05", "holding_limite": "13:05", "holding_completo": "", "holding_coment": "", "abm_teo": "17:45", "abm_real": "", "cocina_teo": "18:05", "cocina_real": "", "apto_teo": "18:30", "apto_real": "", "carg_ini_teo": "19:00", "carg_ini_real": "", "carg_fin_teo": "19:35", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "56", "matricula": "CC-DII", "tipo": "A320", "config": "Vantrip Fresh", "origen": "", "destino": "ANF", "negocio": "NAC", "etd": "20:04", "consolidador": "", "holding_teo": "12:14", "holding_limite": "13:14", "holding_completo": "", "holding_coment": "", "abm_teo": "17:54", "abm_real": "", "cocina_teo": "18:14", "cocina_real": "", "apto_teo": "18:39", "apto_real": "", "carg_ini_teo": "19:09", "carg_ini_real": "", "carg_fin_teo": "19:44", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "284", "salida": "184", "matricula": "CC-BHJ", "tipo": "A320", "config": "ORIGINATOR", "origen": "PMC", "destino": "ARI", "negocio": "NAC", "etd": "20:39", "consolidador": "", "holding_teo": "12:49", "holding_limite": "13:49", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "18:29", "abm_real": "", "cocina_teo": "18:49", "cocina_real": "", "apto_teo": "19:14", "apto_real": "", "carg_ini_teo": "19:44", "carg_ini_real": "", "carg_fin_teo": "20:19", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "781", "salida": "778", "matricula": "CC-BHT", "tipo": "A320", "config": "PASAJERO", "origen": "GIG", "destino": "GIG", "negocio": "INT", "etd": "20:55", "consolidador": "", "holding_teo": "13:05", "holding_limite": "14:05", "holding_completo": "", "holding_coment": "", "abm_teo": "18:45", "abm_real": "", "cocina_teo": "19:05", "cocina_real": "", "apto_teo": "19:30", "apto_real": "", "carg_ini_teo": "20:00", "carg_ini_real": "", "carg_fin_teo": "20:35", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "8", "salida": "11", "matricula": "CC-BEF", "tipo": "A321", "config": "ORIGINATOR", "origen": "CCP", "destino": "CCP", "negocio": "NAC", "etd": "21:04", "consolidador": "", "holding_teo": "13:14", "holding_limite": "14:14", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "18:54", "abm_real": "", "cocina_teo": "19:14", "cocina_real": "", "apto_teo": "19:39", "apto_real": "", "carg_ini_teo": "20:09", "carg_ini_real": "", "carg_fin_teo": "20:44", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "155", "salida": "756", "matricula": "PR-TYK", "tipo": "A320", "config": "PASAJERO", "origen": "CJC", "destino": "GRU", "negocio": "INT", "etd": "21:07", "consolidador": "", "holding_teo": "13:17", "holding_limite": "14:17", "holding_completo": "", "holding_coment": "", "abm_teo": "18:57", "abm_real": "", "cocina_teo": "19:17", "cocina_real": "", "apto_teo": "19:42", "apto_real": "", "carg_ini_teo": "20:12", "carg_ini_real": "", "carg_fin_teo": "20:47", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "749", "salida": "257", "matricula": "PR-TYQ", "tipo": "A320", "config": "ORIGINATOR", "origen": "GRU", "destino": "PMC", "negocio": "NAC", "etd": "21:30", "consolidador": "", "holding_teo": "13:40", "holding_limite": "14:40", "holding_completo": "", "holding_coment": "", "abm_teo": "19:20", "abm_real": "", "cocina_teo": "19:40", "cocina_real": "", "apto_teo": "20:05", "apto_real": "", "carg_ini_teo": "20:35", "carg_ini_real": "", "carg_fin_teo": "21:10", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "476", "salida": "2444", "matricula": "CC-BAR", "tipo": "A320", "config": "PASAJERO", "origen": "EZE", "destino": "LIM", "negocio": "INT", "etd": "21:30", "consolidador": "", "holding_teo": "13:40", "holding_limite": "14:40", "holding_completo": "", "holding_coment": "", "abm_teo": "19:20", "abm_real": "", "cocina_teo": "19:40", "cocina_real": "", "apto_teo": "20:05", "apto_real": "", "carg_ini_teo": "20:35", "carg_ini_real": "", "carg_fin_teo": "21:10", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "381", "salida": "182", "matricula": "CC-BEM", "tipo": "A321", "config": "ORIGINATOR", "origen": "CJC", "destino": "ARI", "negocio": "NAC", "etd": "22:13", "consolidador": "", "holding_teo": "14:23", "holding_limite": "15:23", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "20:03", "abm_real": "", "cocina_teo": "20:23", "cocina_real": "", "apto_teo": "20:48", "apto_real": "", "carg_ini_teo": "21:18", "carg_ini_real": "", "carg_fin_teo": "21:53", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "IB  0114", "matricula": "IB  0114", "tipo": "A350", "config": "IBERIA", "origen": "", "destino": "MAD", "negocio": "INT", "etd": "22:20", "consolidador": "", "holding_teo": "14:05", "holding_limite": "15:05", "holding_completo": "", "holding_coment": "", "abm_teo": "19:30", "abm_real": "", "cocina_teo": "20:05", "cocina_real": "", "apto_teo": "20:30", "apto_real": "", "carg_ini_teo": "20:40", "carg_ini_real": "", "carg_fin_teo": "21:20", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "377", "salida": "65", "matricula": "CC-BAE", "tipo": "A320", "config": "ORIGINATOR", "origen": "CJC", "destino": "PMC", "negocio": "NAC", "etd": "22:34", "consolidador": "", "holding_teo": "14:44", "holding_limite": "15:44", "holding_completo": "", "holding_coment": "", "abm_teo": "20:24", "abm_real": "", "cocina_teo": "20:44", "cocina_real": "", "apto_teo": "21:09", "apto_real": "", "carg_ini_teo": "21:39", "carg_ini_real": "", "carg_fin_teo": "22:14", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "411", "salida": "792", "matricula": "CC-BHN", "tipo": "A320", "config": "PASAJERO", "origen": "MVD", "destino": "REC", "negocio": "", "etd": "22:40", "consolidador": "", "holding_teo": "14:50", "holding_limite": "15:50", "holding_completo": "", "holding_coment": "", "abm_teo": "20:30", "abm_real": "", "cocina_teo": "20:50", "cocina_real": "", "apto_teo": "21:15", "apto_real": "", "carg_ini_teo": "21:45", "carg_ini_real": "", "carg_fin_teo": "22:20", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "32", "salida": "87", "matricula": "CC-BEP", "tipo": "A321", "config": "CANASTA", "origen": "ZCO", "destino": "PUQ", "negocio": "NAC", "etd": "22:49", "consolidador": "", "holding_teo": "14:59", "holding_limite": "15:59", "holding_completo": "NO", "holding_coment": "ifbl generado", "abm_teo": "20:39", "abm_real": "", "cocina_teo": "20:59", "cocina_real": "", "apto_teo": "21:24", "apto_real": "", "carg_ini_teo": "21:54", "carg_ini_real": "", "carg_fin_teo": "22:29", "carg_fin_real": "", "obs": "2 tramos", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "rojo"}, {"arribo": "", "salida": "532", "matricula": "CC-BBF", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "JFK", "negocio": "INT", "etd": "22:55", "consolidador": "", "holding_teo": "14:40", "holding_limite": "15:40", "holding_completo": "", "holding_coment": "", "abm_teo": "20:05", "abm_real": "", "cocina_teo": "20:40", "cocina_real": "", "apto_teo": "21:10", "apto_real": "", "carg_ini_teo": "21:15", "carg_ini_real": "", "carg_fin_teo": "21:56", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "782", "salida": "1986", "matricula": "CC-BAM", "tipo": "A320", "config": "TRASLADO", "origen": "CWB", "destino": "BOG", "negocio": "INT", "etd": "23:00", "consolidador": "", "holding_teo": "15:10", "holding_limite": "16:10", "holding_completo": "", "holding_coment": "", "abm_teo": "20:50", "abm_real": "", "cocina_teo": "21:10", "cocina_real": "", "apto_teo": "21:35", "apto_real": "", "carg_ini_teo": "22:05", "carg_ini_real": "", "carg_fin_teo": "22:40", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "500", "matricula": "CC-BGK", "tipo": "B789", "config": "PASAJERO", "origen": "", "destino": "MIA", "negocio": "", "etd": "23:00", "consolidador": "", "holding_teo": "14:45", "holding_limite": "15:45", "holding_completo": "", "holding_coment": "", "abm_teo": "O MOYA", "abm_real": "", "cocina_teo": "2:00", "cocina_real": "1", "apto_teo": "2:20", "apto_real": "1", "carg_ini_teo": "2:42", "carg_ini_real": "1", "carg_fin_teo": "", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "572", "matricula": "EC-ODP", "tipo": "A330", "config": "PASAJERO", "origen": "", "destino": "BOG", "negocio": "INT", "etd": "23:05", "consolidador": "", "holding_teo": "14:50", "holding_limite": "15:50", "holding_completo": "", "holding_coment": "", "abm_teo": "20:15", "abm_real": "", "cocina_teo": "20:50", "cocina_real": "", "apto_teo": "21:20", "apto_real": "", "carg_ini_teo": "21:25", "carg_ini_real": "", "carg_fin_teo": "22:06", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "", "salida": "602", "matricula": "CC-BBG", "tipo": "B787", "config": "PASAJERO", "origen": "", "destino": "LAX", "negocio": "INT", "etd": "23:15", "consolidador": "", "holding_teo": "15:00", "holding_limite": "16:00", "holding_completo": "", "holding_coment": "", "abm_teo": "20:25", "abm_real": "", "cocina_teo": "21:00", "cocina_real": "", "apto_teo": "21:30", "apto_real": "", "carg_ini_teo": "21:35", "carg_ini_real": "", "carg_fin_teo": "22:16", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "234", "salida": "672", "matricula": "CC-COO", "tipo": "A320", "config": "PASAJERO", "origen": "ZCO", "destino": "CNF", "negocio": "", "etd": "23:50", "consolidador": "", "holding_teo": "16:00", "holding_limite": "17:00", "holding_completo": "", "holding_coment": "", "abm_teo": "SEG V", "abm_real": "21:40", "cocina_teo": "", "cocina_real": "22:00", "apto_teo": "", "apto_real": "22:25", "carg_ini_teo": "", "carg_ini_real": "22:55", "carg_fin_teo": "", "carg_fin_real": "23:30", "obs": "INT", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "424", "salida": "790", "matricula": "CC-COK", "tipo": "A320", "config": "PASAJERO", "origen": "AEP", "destino": "BSB", "negocio": "INT", "etd": "23:55", "consolidador": "", "holding_teo": "16:05", "holding_limite": "17:05", "holding_completo": "", "holding_coment": "", "abm_teo": "21:45", "abm_real": "", "cocina_teo": "22:05", "cocina_real": "", "apto_teo": "22:30", "apto_real": "", "carg_ini_teo": "23:00", "carg_ini_real": "", "carg_fin_teo": "23:35", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}, {"arribo": "4045", "salida": "4092", "matricula": "N332QT", "tipo": "A330", "config": "TAMPA", "origen": "AGT", "destino": "MIA", "negocio": "INT", "etd": "1:00", "consolidador": "", "holding_teo": "16:45", "holding_limite": "17:45", "holding_completo": "", "holding_coment": "", "abm_teo": "22:10", "abm_real": "", "cocina_teo": "22:45", "cocina_real": "", "apto_teo": "23:15", "apto_real": "", "carg_ini_teo": "23:20", "carg_ini_real": "", "carg_fin_teo": "0:01", "carg_fin_real": "", "obs": "", "delays": {"abm": null, "cocina": null, "apto": null, "carg_ini": null, "carg_fin": null}, "statuses": {"abm": "sin_dato", "cocina": "sin_dato", "apto": "sin_dato", "carg_ini": "sin_dato", "carg_fin": "sin_dato"}, "overall": "sin_dato"}];
+
+const CP = [
+  {key:'abm', label:'ABM'},
+  {key:'cocina', label:'Cocina'},
+  {key:'apto', label:'Ing. Apto'},
+  {key:'carg_ini', label:'Inicio Carguío'},
+  {key:'carg_fin', label:'Fin Carguío'}
+];
+
+function render(filter){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  let list = DATA;
+
+  if(filter === 'all'){
+    const now = new Date();
+    const withDate = DATA.map(f => ({ f, etdDate: etdDateTime(f.etd) }))
+                         .filter(x => x.etdDate !== null)
+                         .sort((a,b) => a.etdDate - b.etdDate);
+    const pastFlights = withDate.filter(x => x.etdDate <= now);
+    const futureFlights = withDate.filter(x => x.etdDate > now);
+    const lastDelivered = pastFlights.slice(-5);
+    const nextUpcoming = futureFlights.slice(0, 20);
+    list = [...lastDelivered, ...nextUpcoming].map(x => x.f);
+  }
+  if(filter === 'rojo') list = DATA.filter(f=>f.overall==='rojo');
+  if(filter === 'amarillo') list = DATA.filter(f=>f.overall==='amarillo');
+  if(filter === 'holding_no') list = DATA.filter(f=>f.holding_completo==='NO');
+  if(filter === 'sin_planta') list = DATA.filter(f=> !f.cocina_real || String(f.cocina_real).trim()==='');
+  if(filter === 'urgentes'){
+    const refInput = document.getElementById('ref-time').value;
+    const refDate = refInput ? new Date(refInput) : new Date();
+    list = DATA.filter(f=>{
+      if(f.holding_completo !== 'NO') return false;
+      const etdMin = timeToMinutes(f.etd);
+      if(etdMin === null) return false;
+      const pad = n => String(n).padStart(2,'0');
+      const etdDate = new Date(`${REPORT_DATE}T${pad(Math.floor(etdMin/60))}:${pad(etdMin%60)}:00`);
+      const minutesLeft = (etdDate - refDate) / 60000;
+      return minutesLeft <= 120;
+    });
+  }
+  if(filter === 'entregados') list = DATA.filter(f=>f.holding_completo==='SI');
+
+  list = list.slice().sort((a,b) => (timeToMinutes(a.etd) ?? 9999) - (timeToMinutes(b.etd) ?? 9999));
+
+  list.forEach((f,i)=>{
+    const tr = document.createElement('tr');
+    tr.className = 'overall-' + f.overall;
+    tr.style.animationDelay = (i*0.02)+'s';
+
+    const dotsCells = CP.map(cp=>{
+      const st = f.statuses[cp.key] || 'sin_dato';
+      const d = f.delays[cp.key];
+      const title = d===null||d===undefined ? 'Sin dato' : (d+' min ' + (d>=0?'de atraso':'de adelanto'));
+      return `<td style="text-align:center;"><div class="dot ${st}" title="${cp.label}: ${title}" style="margin:0 auto;"></div></td>`;
+    }).join('');
+
+    const hstate = f.holding_completo === 'SI' ? 'SI' : (f.holding_completo === 'NO' ? 'NO' : 'blank');
+    const hlabel = f.holding_completo === 'SI' ? 'COMPLETO' : (f.holding_completo === 'NO' ? 'INCOMPLETO' : 'S/D');
+
+    tr.innerHTML = `
+      <td><span class="matricula">${f.salida||f.arribo||''}</span><br><span class="ruta">${f.matricula} · ${f.tipo}</span></td>
+      <td class="ruta">${f.origen||'—'} → ${f.destino||'—'}</td>
+      <td class="ruta" style="font-family:'Space Mono',monospace;">${f.etd||'—'}</td>
+      <td><span class="badge ${f.negocio}">${f.negocio}</span></td>
+      ${dotsCells}
+      <td><span class="hbadge ${hstate}" title="${f.holding_coment||''}">${hlabel}</span></td>
+      <td class="obs">${f.obs || f.holding_coment || ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderKpis(){
+  const total = DATA.length;
+  const verde = DATA.filter(f=>f.overall==='verde').length;
+  const amarillo = DATA.filter(f=>f.overall==='amarillo').length;
+  const rojo = DATA.filter(f=>f.overall==='rojo').length;
+  // (el conteo total del snapshot ya no se muestra en el dashboard)
+  document.getElementById('k-verde').textContent = verde;
+  document.getElementById('k-amarillo').textContent = amarillo;
+  document.getElementById('k-rojo').textContent = rojo;
+  renderOpsSummary(rojo, amarillo);
+}
+
+function renderOpsSummary(rojo, amarillo){
+  const box = document.getElementById('ops-status-box');
+  const label = document.getElementById('ops-status-label');
+  box.classList.remove('estable','alerta','critica');
+  if(rojo > 0){
+    box.classList.add('critica');
+    label.textContent = 'OPERACIÓN CRÍTICA';
+  } else if(amarillo > 0){
+    box.classList.add('alerta');
+    label.textContent = 'OPERACIÓN ALERTA';
+  } else {
+    box.classList.add('estable');
+    label.textContent = 'OPERACIÓN ESTABLE';
+  }
+
+  // OTP: vuelos cuyo FIN REAL de carguío quedó después del ETD del vuelo
+  let entregados = 0, atrasados = 0;
+  const atrasadosList = [];
+  DATA.forEach(f=>{
+    const real = f.carg_fin_real;
+    const etd = f.etd;
+    if(!real || String(real).trim()==='' || !etd) return;
+    entregados++;
+    const realMin = timeToMinutes(real);
+    const etdMin = timeToMinutes(etd);
+    if(realMin === null || etdMin === null) return;
+    let diff = realMin - etdMin;
+    while(diff > 720) diff -= 1440;
+    while(diff < -720) diff += 1440;
+    if(diff > 0){
+      atrasados++;
+      atrasadosList.push({ vuelo: f.salida || f.arribo || f.matricula, minutos: diff });
+    }
+  });
+  document.getElementById('k-otp').textContent = atrasados;
+  document.getElementById('k-otp-sub').textContent = `de ${entregados} vuelos entregados`;
+
+  const listEl = document.getElementById('otp-list');
+  if(atrasadosList.length === 0){
+    listEl.innerHTML = '<div class="otp-empty">Sin vuelos atrasados por ahora.</div>';
+  } else {
+    atrasadosList.sort((a,b)=>b.minutos - a.minutos);
+    listEl.innerHTML = atrasadosList.map(item => `
+      <div class="otp-item">
+        <span class="vuelo">${item.vuelo}</span>
+        <span class="min">+${item.minutos} min</span>
+      </div>
+    `).join('');
+  }
+}
+
+let REPORT_DATE = '2026-07-08'; // fecha ETD de esta MPS (se actualiza sola al detectar el día de hoy)
+
+function timeToMinutes(t){
+  if(!t) return null;
+  const [h,m] = t.trim().split(':').map(Number);
+  if(isNaN(h) || isNaN(m)) return null;
+  return h*60+m;
+}
+
+function etdDateTime(etd){
+  const etdMin = timeToMinutes(etd);
+  if(etdMin === null) return null;
+  const pad = n => String(n).padStart(2,'0');
+  return new Date(`${REPORT_DATE}T${pad(Math.floor(etdMin/60))}:${pad(etdMin%60)}:00`);
+}
+
+function checkpointDateTime(etd, teo){
+  const etdMin = timeToMinutes(etd);
+  const teoMin = timeToMinutes(teo);
+  if(etdMin === null || teoMin === null) return null;
+  const offset = (etdMin - teoMin + 1440) % 1440; // minutos antes del ETD
+  const pad = n => String(n).padStart(2,'0');
+  const etdDate = new Date(`${REPORT_DATE}T${pad(Math.floor(etdMin/60))}:${pad(etdMin%60)}:00`);
+  return new Date(etdDate.getTime() - offset*60000);
+}
+
+const TEO_FIELD = {abm:'abm_teo', cocina:'cocina_teo', apto:'apto_teo', carg_ini:'carg_ini_teo', carg_fin:'carg_fin_teo'};
+const REAL_FIELD = {abm:'abm_real', cocina:'cocina_real', apto:'apto_real', carg_ini:'carg_ini_real', carg_fin:'carg_fin_real'};
+
+function renderBottleneck(){
+  const refInput = document.getElementById('ref-time').value;
+  const refDate = refInput ? new Date(refInput) : new Date();
+
+  const container = document.getElementById('bl-rows');
+  container.innerHTML = '';
+  CP.forEach(cp=>{
+    const counts = {verde:0, amarillo:0, rojo:0, sininfo:0};
+    let applicable = 0;
+    DATA.forEach(f=>{
+      const realVal = f[REAL_FIELD[cp.key]];
+      const hasReal = realVal !== undefined && realVal !== null && String(realVal).trim() !== '';
+      if(hasReal){
+        counts[f.statuses[cp.key] || 'verde']++;
+        applicable++;
+      } else {
+        const cpDateTime = checkpointDateTime(f.etd, f[TEO_FIELD[cp.key]]);
+        const isDue = cpDateTime && cpDateTime <= refDate;
+        if(isDue){
+          counts.sininfo++;
+          applicable++;
+        }
+        // si aún no le toca, no se cuenta en absoluto
+      }
+    });
+    const row = document.createElement('div');
+    row.className = 'bl-row';
+    const pct = k => applicable ? (counts[k]/applicable*100).toFixed(0)+'%' : '0%';
+    row.innerHTML = `
+      <div class="bl-label">${cp.label}</div>
+      <div class="bl-track">
+        <div class="bl-seg verde" style="width:${pct('verde')}"></div>
+        <div class="bl-seg amarillo" style="width:${pct('amarillo')}"></div>
+        <div class="bl-seg rojo" style="width:${pct('rojo')}"></div>
+        <div class="bl-seg sininfo" style="width:${pct('sininfo')}"></div>
+      </div>
+      <div class="bl-count">${counts.amarillo+counts.rojo+counts.sininfo}/${applicable}</div>
+    `;
+    container.appendChild(row);
+  });
+
+  // KPI: vuelos que ya deberían tener información de entrega (fin carguío) y aún no la tienen
+  let sinInfoEntrega = 0;
+  DATA.forEach(f=>{
+    const realVal = f.carg_fin_real;
+    const hasReal = realVal !== undefined && realVal !== null && String(realVal).trim() !== '';
+    if(!hasReal){
+      const cpDateTime = checkpointDateTime(f.etd, f.carg_fin_teo);
+      if(cpDateTime && cpDateTime <= refDate) sinInfoEntrega++;
+    }
+  });
+  document.getElementById('k-sininfo').textContent = sinInfoEntrega;
+}
+
+document.querySelectorAll('.filters button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    render(btn.dataset.f);
+  });
+});
+
+let TOTAL_DIA = 173;
+
+function updatePending(){
+  const input = document.getElementById('completed-input');
+  let completados = parseInt(input.value, 10);
+  if (isNaN(completados) || completados < 0) completados = 0;
+  if (completados > TOTAL_DIA) completados = TOTAL_DIA;
+  const faltan = TOTAL_DIA - completados;
+  document.getElementById('k-pending').textContent = faltan;
+  document.getElementById('k-completed-big').textContent = completados;
+}
+document.getElementById('completed-input').addEventListener('input', updatePending);
+
+// ---------- Bitácora del turno ----------
+const shiftLog = [];
+
+function currentCounts(){
+  return {
+    verde: document.getElementById('k-verde').textContent,
+    amarillo: document.getElementById('k-amarillo').textContent,
+    rojo: document.getElementById('k-rojo').textContent,
+    completados: document.getElementById('completed-input').value,
+    faltan: document.getElementById('k-pending').textContent,
+    estado: document.getElementById('ops-status-label').textContent
+  };
+}
+
+function estadoClass(estado){
+  if(estado.includes('CRÍTICA')) return 'rojo';
+  if(estado.includes('ALERTA')) return 'amarillo';
+  return 'verde';
+}
+
+function nowLabel(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderLog(){
+  const body = document.getElementById('log-body');
+  const empty = document.getElementById('log-empty');
+  const table = document.getElementById('log-table');
+  if(shiftLog.length === 0){
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = 'table';
+  body.innerHTML = shiftLog.map(e => `
+    <tr>
+      <td>${e.hora}</td>
+      <td style="color:var(--${estadoClass(e.estado)}); font-weight:700;">${e.estado}</td>
+      <td style="color:var(--verde)">${e.completados}</td>
+      <td style="color:var(--rojo)">${e.faltan}</td>
+      <td style="color:var(--rojo)">${e.rojo}</td>
+      <td style="color:var(--amarillo)">${e.amarillo}</td>
+      <td style="color:var(--verde)">${e.verde}</td>
+    </tr>
+  `).join('');
+}
+
+function registerSnapshot(){
+  const c = currentCounts();
+  shiftLog.push({ hora: nowLabel(), ...c });
+  renderLog();
+}
+
+document.getElementById('btn-log-now').addEventListener('click', registerSnapshot);
+
+// Registro automático cada 30 minutos, para tener la evolución del turno sin intervención manual
+registerSnapshot();
+setInterval(registerSnapshot, 30 * 60 * 1000);
+
+document.getElementById('btn-log-copy').addEventListener('click', ()=>{
+  if(shiftLog.length === 0) return;
+  let text = 'BITÁCORA DEL TURNO — Catering SCL\n';
+  text += 'Hora    | Estado             | Entregados | Faltan | Crítico | Alerta | En tiempo\n';
+  shiftLog.forEach(e=>{
+    text += `${e.hora}   | ${e.estado.padEnd(18)} | ${e.completados}          | ${e.faltan}     | ${e.rojo}       | ${e.amarillo}      | ${e.verde}\n`;
+  });
+  navigator.clipboard.writeText(text).then(()=>{
+    const fb = document.getElementById('log-copy-feedback');
+    fb.classList.add('show');
+    setTimeout(()=>fb.classList.remove('show'), 1800);
+  });
+});
+
+renderLog();
+
+// ---------- Resumen para traspaso de turno ----------
+function generateSummary(){
+  const c = currentCounts();
+  const criticos = DATA.filter(f => f.overall === 'rojo');
+  const alertas = DATA.filter(f => f.overall === 'amarillo');
+
+  let text = `RESUMEN DE TRASPASO DE TURNO\n`;
+  text += `Hora: ${nowLabel()} | ${new Date().toLocaleDateString('es-CL')}\n`;
+  text += `----------------------------------------\n`;
+  text += `Programados hoy: 173 (92 NAC / 81 INT)\n`;
+  text += `Entregados al término del turno: ${c.completados}\n`;
+  text += `Faltan por entregar: ${c.faltan}\n`;
+  text += `----------------------------------------\n`;
+  text += `Vuelos en tiempo: ${c.verde}\n`;
+  text += `Vuelos en alerta (15-30 min): ${c.amarillo}\n`;
+  text += `Vuelos críticos (>30 min u Holding incompleto): ${c.rojo}\n`;
+  text += `----------------------------------------\n`;
+  if(criticos.length){
+    text += `CRÍTICOS A SEGUIR:\n`;
+    criticos.forEach(f=>{
+      const obs = f.obs || f.holding_coment || 'sin observación registrada';
+      text += `- ${f.matricula} (${f.salida||f.arribo}) ${f.origen||'—'}→${f.destino||'—'}: ${obs}\n`;
+    });
+  } else {
+    text += `Sin vuelos críticos en este momento.\n`;
+  }
+  if(alertas.length){
+    text += `\nEN ALERTA (seguimiento):\n`;
+    alertas.forEach(f=>{
+      text += `- ${f.matricula} (${f.salida||f.arribo}) ${f.origen||'—'}→${f.destino||'—'}\n`;
+    });
+  }
+  document.getElementById('summary-output').value = text;
+}
+
+document.getElementById('btn-summary-gen').addEventListener('click', generateSummary);
+document.getElementById('btn-summary-copy').addEventListener('click', ()=>{
+  const out = document.getElementById('summary-output');
+  if(!out.value) return;
+  navigator.clipboard.writeText(out.value).then(()=>{
+    const fb = document.getElementById('summary-copy-feedback');
+    fb.classList.add('show');
+    setTimeout(()=>fb.classList.remove('show'), 1800);
+  });
+});
+
+const SHEET_ID = '1SNityLuAWiee0E9VvxtaNeW0PCd_rku3yPEo0_tQTdU';
+const SHEET_GID = '89056612';
+const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const EXCLUDE_KEYWORDS = ['PLATAFORMA','COMISARIATO','STAND BY','BULK','CONTAINER','TERMINATOR',
+                          'FUMIGACION','INCIDENCIA','SALA BRIFFING','NO SALE','MANTTO','PEDIDO MANTTO','NO ACERCAR'];
+
+// Carga los datos de Google Sheets vía JSONP (el mecanismo oficial de Google Visualization API),
+// que se sirve como una etiqueta <script>, no como fetch/XHR — por eso no lo bloquea CORS.
+function loadGvizJSONP(){
+  return new Promise((resolve, reject) => {
+    const callbackName = 'gvizCallback_' + Date.now();
+    const script = document.createElement('script');
+    let timeoutId;
+    window[callbackName] = function(response){
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      script.remove();
+      resolve(response);
+    };
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${SHEET_GID}&tqx=responseHandler:${callbackName}`;
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      script.remove();
+      reject(new Error('No se pudo cargar el script de Google Sheets'));
+    };
+    timeoutId = setTimeout(() => {
+      delete window[callbackName];
+      script.remove();
+      reject(new Error('Tiempo de espera agotado'));
+    }, 15000);
+    document.body.appendChild(script);
+  });
+}
+
+// Convierte la respuesta JSON de gviz al mismo formato de filas/columnas de texto que usábamos con CSV
+function gvizToRows(response){
+  const gvizRows = (response.table && response.table.rows) || [];
+  return gvizRows.map(r => (r.c || []).map(cell => {
+    if(!cell) return '';
+    if(cell.f !== undefined && cell.f !== null) return String(cell.f);
+    if(cell.v !== undefined && cell.v !== null) return String(cell.v);
+    return '';
+  }));
+}
+
+function todayLabel(){
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}-${MONTHS_ES[d.getMonth()]}`;
+}
+
+function classifyDelay(delay){
+  if(delay === null) return "sin_dato";
+  if(delay <= 15) return "verde";
+  if(delay <= 30) return "amarillo";
+  return "rojo";
+}
+
+function circularDiff(teo, real){
+  const t = timeToMinutes(teo), r = timeToMinutes(real);
+  if(t === null || r === null) return null;
+  let d = r - t;
+  while(d > 720) d -= 1440;
+  while(d < -720) d += 1440;
+  return d;
+}
+
+const CHECKPOINTS = ["abm","cocina","apto","carg_ini","carg_fin"];
+
+async function fetchFullMPS(){
+  const statusEl = document.getElementById('sync-fullstatus');
+  try{
+    const response = await loadGvizJSONP();
+    if(response.status === 'error'){
+      throw new Error((response.errors && response.errors[0] && response.errors[0].detailed_message) || 'Error de Google Sheets');
+    }
+    const rows = gvizToRows(response);
+
+    // Buscar TOTAL / NAC / INT en las primeras filas (resumen superior de la MPS)
+    let totalDia = TOTAL_DIA, nacCount = null, intCount = null;
+    for(const r of rows.slice(0, 6)){
+      for(let i=0; i<r.length; i++){
+        const cell = (r[i]||'').trim().toUpperCase();
+        if(cell === 'TOTAL' && r[i+1]) totalDia = parseInt(r[i+1], 10) || totalDia;
+        if(cell === 'NAC' && r[i+1]) nacCount = parseInt(r[i+1], 10);
+        if(cell === 'INT' && r[i+1]) intCount = parseInt(r[i+1], 10);
+      }
+    }
+
+    // Encontrar la fila de encabezado (columna 0 === 'FECHA')
+    let headerIdx = -1;
+    for(let i=0; i<rows.length; i++){
+      if(rows[i][0] && rows[i][0].trim() === 'FECHA'){ headerIdx = i; break; }
+    }
+    if(headerIdx === -1) throw new Error('No se encontró encabezado FECHA');
+
+    const today = todayLabel();
+    const dataRows = rows.slice(headerIdx + 1);
+    const flights = [];
+
+    for(const row of dataRows){
+      if(row.length < 51) continue;
+      const fecha = (row[0]||'').trim();
+      if(fecha !== today) continue;
+      const matricula = (row[1]||'').trim();
+      const config = (row[3]||'').trim();
+      const salida = (row[7]||'').trim();
+      const arribo = (row[4]||'').trim();
+      if(!matricula && !salida && !arribo) continue;
+      if(EXCLUDE_KEYWORDS.some(k => config.toUpperCase().includes(k))) continue;
+      const etd = (row[9]||'').trim();
+      if(!etd) continue;
+
+      const f = {
+        arribo, salida, matricula, tipo:(row[2]||'').trim(), config,
+        origen:(row[5]||'').trim(), destino:(row[8]||'').trim(), negocio:(row[51]||'').trim(), etd,
+        consolidador:(row[11]||'').trim(),
+        holding_teo:(row[12]||'').trim(), holding_limite:(row[13]||'').trim(), holding_completo:(row[14]||'').trim(),
+        holding_coment:(row[15]||'').trim(),
+        abm_teo:(row[36]||'').trim(), abm_real:(row[37]||'').trim(),
+        cocina_teo:(row[39]||'').trim(), cocina_real:(row[40]||'').trim(),
+        apto_teo:(row[42]||'').trim(), apto_real:(row[43]||'').trim(),
+        carg_ini_teo:(row[45]||'').trim(), carg_ini_real:(row[46]||'').trim(),
+        carg_fin_teo:(row[48]||'').trim(), carg_fin_real:(row[49]||'').trim(),
+        obs:(row[52]||'').trim(),
+      };
+
+      const delays = {}, statuses = {};
+      for(const cp of CHECKPOINTS){
+        const d = circularDiff(f[cp+'_teo'], f[cp+'_real']);
+        delays[cp] = d;
+        statuses[cp] = classifyDelay(d);
+      }
+      f.delays = delays;
+      f.statuses = statuses;
+      const order = {rojo:3, amarillo:2, verde:1, sin_dato:0};
+      let worst = Object.values(statuses).reduce((a,b)=> order[b] > order[a] ? b : a, 'sin_dato');
+      if(f.holding_completo === 'NO') worst = 'rojo';
+      f.overall = worst;
+      flights.push(f);
+    }
+
+    if(flights.length > 0){
+      DATA = flights;
+      REPORT_DATE = new Date().toISOString().slice(0,10);
+      TOTAL_DIA = totalDia;
+
+      document.getElementById('k-total-dia').textContent = totalDia;
+      if(nacCount !== null && intCount !== null){
+        document.getElementById('k-nac-int').textContent = `${nacCount} NAC · ${intCount} INT`;
+      }
+      document.getElementById('k-de-programados').textContent = `de ${totalDia} programados`;
+      document.getElementById('mps-date').textContent = today.toUpperCase() + '-' + new Date().getFullYear();
+      document.getElementById('completed-input').max = totalDia;
+
+      const entregados = flights.filter(f => f.holding_completo === 'SI').length;
+      document.getElementById('completed-input').value = entregados;
+      updatePending();
+
+      renderKpis();
+      renderBottleneck();
+      const activeBtn = document.querySelector('.filters button.active');
+      render(activeBtn ? activeBtn.dataset.f : 'all');
+
+      statusEl.textContent = 'conectado — ' + flights.length + ' vuelos de hoy (' + new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) + ')';
+      statusEl.style.color = 'var(--verde)';
+    } else {
+      statusEl.textContent = 'conectado, pero no se encontraron vuelos para la fecha de hoy en la MPS';
+      statusEl.style.color = 'var(--amarillo)';
+    }
+  }catch(err){
+    statusEl.textContent = 'sin conexión al Sheet — mostrando el último snapshot cargado';
+    statusEl.style.color = 'var(--amarillo)';
+  }
+}
+
+function updateStatusTime(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('status-time').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+updateStatusTime();
+setInterval(updateStatusTime, 60000);
+
+fetchFullMPS();
+setInterval(fetchFullMPS, 5 * 60000);
+
+function initRefTime(){
+  const input = document.getElementById('ref-time');
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  input.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  input.addEventListener('change', renderBottleneck);
+}
+
+initRefTime();
+renderKpis();
+renderBottleneck();
+render('all');
+
+setInterval(()=>{
+  const activeBtn = document.querySelector('.filters button.active');
+  if(activeBtn && activeBtn.dataset.f === 'all'){
+    render('all');
+  }
+}, 60000);
+updatePending();
+</script>
+</body>
+</html>
